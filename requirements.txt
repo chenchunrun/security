@@ -1,0 +1,29 @@
+# Core Dependencies
+langchain==0.3.10
+langchain-openai==0.2.10
+langchain-community==0.3.10
+openai==1.54.0
+
+# Vector Stores
+chromadb==0.6.0
+langchain-chroma==0.1.4
+
+# Data Processing
+pydantic==2.9.0
+pydantic-settings==2.6.0
+python-dotenv==1.0.1
+
+# Async Support
+aiohttp==3.10.11
+asyncio==3.4.3
+
+# Utilities
+requests==2.32.3
+python-dateutil==2.9.0
+
+# Logging
+loguru==0.7.2
+
+# Testing
+pytest==8.3.3
+pytest-asyncio==0.24.0

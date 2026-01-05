@@ -1,0 +1,163 @@
+"""
+Unit tests for LLM Router service.
+"""
+
+import pytest
+from unittest.mock import AsyncMock, MagicMock, patch
+
+from fastapi.testclient import TestClient
+
+
+class TestLLMRouterAPI:
+    """Test LLM Router API endpoints."""
+
+    @pytest.fixture
+    def client(self):
+        """Create test client."""
+        from services.llm_router.main import app
+        return TestClient(app)
+
+    @pytest.fixture
+    def mock_http_client(self):
+        """Mock HTTP client for LLM API calls."""
+        with patch("services.llm_router.main.httpx.AsyncClient") as mock:
+            client_instance = MagicMock()
+            client_instance.__aenter__ = AsyncMock(return_value=client_instance)
+            client_instance.__aexit__ = AsyncMock()
+
+            # Mock successful API response
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json = AsyncMock(return_value={
+                "id": "test-response",
+                "object": "chat.completion",
+                "created": 1234567890,
+                "model": "deepseek-v3",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": "Test response"
+                        },
+                        "finish_reason": "stop"
+                    }
+                ],
+                "usage": {
+                    "prompt_tokens": 10,
+                    "completion_tokens": 5,
+                    "total_tokens": 15
+                }
+            })
+            mock_response.raise_for_status = MagicMock()
+
+            client_instance.post = AsyncMock(return_value=mock_response)
+
+            mock.return_value = client_instance
+            yield client_instance
+
+    @pytest.fixture
+    def mock_db(self):
+        """Mock database manager."""
+        with patch("services.llm_router.main.get_database_manager") as mock:
+            db_instance = MagicMock()
+            db_instance.initialize = AsyncMock()
+            db_instance.close = AsyncMock()
+            mock.return_value = db_instance
+            yield db_instance
+
+    def test_health_check(self, client):
+        """Test health check endpoint."""
+        response = client.get("/health")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "healthy"
+        assert data["service"] == "llm-router"
+
+    def test_list_models(self, client):
+        """Test listing available models."""
+        response = client.get("/api/v1/models")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "data" in data
+        assert len(data["data"]) > 0
+
+    def test_route_test(self, client):
+        """Test routing decision endpoint."""
+        request_data = {
+            "task_type": "triage",
+            "messages": [
+                {"role": "user", "content": "Test alert analysis"}
+            ],
+            "temperature": 0.7
+        }
+
+        response = client.post("/api/v1/route", json=request_data)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "data" in data
+        assert "selected_model" in data["data"]
+        assert "reason" in data["data"]
+
+
+class TestLLMRouterLogic:
+    """Test LLM Router routing logic."""
+
+    def test_route_request_with_model_specified(self):
+        """Test routing when model is explicitly specified."""
+        from services.llm_router.main import route_request, LLMRequest, TaskType, LLMModel
+
+        request = LLMRequest(
+            task_type=TaskType.TRIAGE,
+            messages=[{"role": "user", "content": "Test"}],
+            model=LLMModel.DEEPSEEK_V3,
+            temperature=0.7
+        )
+
+        decision = route_request(request)
+
+        assert decision.selected_model == LLMModel.DEEPSEEK_V3
+        assert decision.reason == "User specified model"
+        assert decision.confidence == 1.0
+
+    def test_route_request_by_task_type(self):
+        """Test routing based on task type."""
+        from services.llm_router.main import route_request, LLMRequest, TaskType
+
+        request = LLMRequest(
+            task_type=TaskType.TRIAGE,
+            messages=[{"role": "user", "content": "Analyze alert"}],
+            temperature=0.7
+        )
+
+        decision = route_request(request)
+
+        assert decision.selected_model is not None
+        assert "triage" in decision.reason.lower() or "best match" in decision.reason.lower()
+        assert 0.0 <= decision.confidence <= 1.0
+
+    def test_extract_iocs(self):
+        """Test IOC extraction from alert."""
+        from services.llm_router.main import extract_iocs
+
+        alert = {
+            "source_ip": "45.33.32.156",
+            "target_ip": "10.0.0.50",
+            "file_hash": "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"
+        }
+
+        iocs = extract_iocs(alert)
+
+        assert len(iocs) == 3
+        assert any(ioc["value"] == "45.33.32.156" for ioc in iocs)
+        assert any(ioc["value"] == "10.0.0.50" for ioc in iocs)
+        assert any(ioc["value"] == alert["file_hash"] for ioc in iocs)
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
