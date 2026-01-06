@@ -52,6 +52,7 @@ jobs:
 
     - name: Run unit tests
       run: |
+        PYTHONPATH=${GITHUB_WORKSPACE}/services:$PYTHONPATH \
         pytest tests/unit/ -v \
           --cov=services \
           --cov-report=xml \
