@@ -39,7 +39,7 @@ jobs:
         pip install black isort mypy pylint pytest pytest-cov pytest-asyncio bandit safety
 
     - name: Black format check
-      run: black --check services/ tests/
+      run: black --check --line-length 100 services/ tests/
 
     - name: isort import check
       run: isort --check-only services/ tests/
