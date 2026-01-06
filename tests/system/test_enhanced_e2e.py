@@ -86,7 +86,7 @@ class TestAlertLifecycle:
             description="E2E test malware alert",
             source_ip="45.33.32.156",
             target_ip="10.0.0.50",
-            file_hash="5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"
+            file_hash="5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
         )
 
         assert alert.alert_id == "ALT-E2E-001"
@@ -118,7 +118,7 @@ class TestAlertLifecycle:
             "level": "HIGH",
             "desc": "Suspicious file detected",
             "src": "192.168.1.100",
-            "dst": "10.0.0.50"
+            "dst": "10.0.0.50",
         }
 
         # Normalize to internal format
@@ -129,7 +129,7 @@ class TestAlertLifecycle:
             severity=Severity.HIGH,
             description=raw_alert["desc"],
             source_ip=raw_alert["src"],
-            target_ip=raw_alert["dst"]
+            target_ip=raw_alert["dst"],
         )
 
         assert normalized_alert.alert_id == "ALT-external-123"
@@ -139,7 +139,13 @@ class TestAlertLifecycle:
     @pytest.mark.asyncio
     async def test_alert_enrichment(self):
         """Test alert enrichment with context."""
-        from shared.models import SecurityAlert, AlertType, Severity, EnrichedContext, NetworkContext
+        from shared.models import (
+            SecurityAlert,
+            AlertType,
+            Severity,
+            EnrichedContext,
+            NetworkContext,
+        )
 
         alert = SecurityAlert(
             alert_id="ALT-ENRICH-001",
@@ -148,21 +154,16 @@ class TestAlertLifecycle:
             severity=Severity.HIGH,
             description="Test alert for enrichment",
             source_ip="45.33.32.156",
-            target_ip="10.0.0.50"
+            target_ip="10.0.0.50",
         )
 
         # Enrich with network context
         network_context = NetworkContext(
-            ip_address=alert.source_ip,
-            is_internal=False,
-            reputation_score=10.0
+            ip_address=alert.source_ip, is_internal=False, reputation_score=10.0
         )
 
         enriched = EnrichedContext(
-            alert_id=alert.alert_id,
-            network=network_context,
-            threat_intel_hits=0,
-            similar_alerts=[]
+            alert_id=alert.alert_id, network=network_context, threat_intel_hits=0, similar_alerts=[]
         )
 
         assert enriched.network.is_internal == False
@@ -173,9 +174,15 @@ class TestAlertLifecycle:
     async def test_triage_generation(self):
         """Test triage result generation."""
         from shared.models import (
-            SecurityAlert, AlertType, Severity,
-            TriageResult, RiskAssessment, RiskLevel,
-            RemediationAction, ActionType, RemediationPriority
+            SecurityAlert,
+            AlertType,
+            Severity,
+            TriageResult,
+            RiskAssessment,
+            RiskLevel,
+            RemediationAction,
+            ActionType,
+            RemediationPriority,
         )
 
         alert = SecurityAlert(
@@ -186,7 +193,7 @@ class TestAlertLifecycle:
             description="Test alert for triage",
             source_ip="45.33.32.156",
             target_ip="10.0.0.50",
-            file_hash="5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"
+            file_hash="5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
         )
 
         # Generate triage result
@@ -201,10 +208,10 @@ class TestAlertLifecycle:
             key_factors=[
                 "High severity alert",
                 "Known malicious file hash",
-                "External IP with low reputation"
+                "External IP with low reputation",
             ],
             requires_human_review=True,
-            review_reason="High risk with external source"
+            review_reason="High risk with external source",
         )
 
         remediation_actions = [
@@ -215,7 +222,7 @@ class TestAlertLifecycle:
                 description="Disconnect host from network to prevent lateral movement",
                 is_automated=True,
                 execution_time_seconds=30,
-                parameters={"host": alert.target_ip, "method": "firewall"}
+                parameters={"host": alert.target_ip, "method": "firewall"},
             ),
             RemediationAction(
                 action_type=ActionType.BLOCK_IP,
@@ -224,8 +231,8 @@ class TestAlertLifecycle:
                 description=f"Block connections from {alert.source_ip}",
                 is_automated=True,
                 execution_time_seconds=10,
-                parameters={"ip": alert.source_ip, "duration": "86400"}
-            )
+                parameters={"ip": alert.source_ip, "duration": "86400"},
+            ),
         ]
 
         triage_result = TriageResult(
@@ -233,14 +240,16 @@ class TestAlertLifecycle:
             risk_assessment=risk_assessment,
             remediation_actions=remediation_actions,
             requires_human_review=True,
-            processing_time_ms=1850.0
+            processing_time_ms=1850.0,
         )
 
         assert triage_result.alert_id == "ALT-TRIAGE-001"
         assert triage_result.risk_assessment.risk_level == RiskLevel.HIGH
         assert len(triage_result.remediation_actions) == 2
         assert triage_result.requires_human_review == True
-        print(f"✓ Triage result generated with risk level: {triage_result.risk_assessment.risk_level}")
+        print(
+            f"✓ Triage result generated with risk level: {triage_result.risk_assessment.risk_level}"
+        )
 
 
 @pytest.mark.e2e
@@ -251,8 +260,11 @@ class TestWorkflowExecution:
     async def test_workflow_trigger(self):
         """Test workflow is triggered by alert."""
         from shared.models import (
-            WorkflowExecution, WorkflowStatus,
-            SecurityAlert, AlertType, Severity
+            WorkflowExecution,
+            WorkflowStatus,
+            SecurityAlert,
+            AlertType,
+            Severity,
         )
 
         alert = SecurityAlert(
@@ -262,7 +274,7 @@ class TestWorkflowExecution:
             severity=Severity.CRITICAL,
             description="Critical malware alert",
             source_ip="45.33.32.156",
-            target_ip="10.0.0.50"
+            target_ip="10.0.0.50",
         )
 
         # Trigger workflow
@@ -271,7 +283,7 @@ class TestWorkflowExecution:
             workflow_id="malware-response",
             status=WorkflowStatus.RUNNING,
             input={"alert_id": alert.alert_id, "severity": alert.severity},
-            started_at=datetime.utcnow()
+            started_at=datetime.utcnow(),
         )
 
         assert workflow.status == WorkflowStatus.RUNNING
@@ -281,10 +293,7 @@ class TestWorkflowExecution:
     @pytest.mark.asyncio
     async def test_automation_execution(self):
         """Test automation playbook execution."""
-        from shared.models import (
-            PlaybookExecution, PlaybookStatus,
-            PlaybookAction, ActionType
-        )
+        from shared.models import PlaybookExecution, PlaybookStatus, PlaybookAction, ActionType
 
         playbook_execution = PlaybookExecution(
             execution_id="pb-exec-001",
@@ -298,21 +307,23 @@ class TestWorkflowExecution:
                     action_type=ActionType.ISOLATE_HOST,
                     parameters={"host": "10.0.0.50", "method": "firewall"},
                     timeout_seconds=30,
-                    status="pending"
+                    status="pending",
                 ),
                 PlaybookAction(
                     action_id="action-002",
                     action_type=ActionType.QUARANTINE_FILE,
                     parameters={"file_path": "/tmp/malware.exe", "method": "move"},
                     timeout_seconds=15,
-                    status="pending"
-                )
-            ]
+                    status="pending",
+                ),
+            ],
         )
 
         assert len(playbook_execution.actions) == 2
         assert playbook_execution.actions[0].action_type == ActionType.ISOLATE_HOST
-        print(f"✓ Playbook {playbook_execution.playbook_id} executing {len(playbook_execution.actions)} actions")
+        print(
+            f"✓ Playbook {playbook_execution.playbook_id} executing {len(playbook_execution.actions)} actions"
+        )
 
 
 @pytest.mark.e2e
@@ -323,11 +334,19 @@ class TestDataFlow:
     async def test_complete_data_pipeline(self):
         """Test complete data from ingestion to response."""
         from shared.models import (
-            SecurityAlert, AlertType, Severity,
-            TriageResult, RiskAssessment, RiskLevel,
-            RemediationAction, ActionType, RemediationPriority,
-            WorkflowExecution, WorkflowStatus,
-            EnrichedContext, NetworkContext
+            SecurityAlert,
+            AlertType,
+            Severity,
+            TriageResult,
+            RiskAssessment,
+            RiskLevel,
+            RemediationAction,
+            ActionType,
+            RemediationPriority,
+            WorkflowExecution,
+            WorkflowStatus,
+            EnrichedContext,
+            NetworkContext,
         )
 
         print("\n=== Complete Alert Processing Pipeline ===\n")
@@ -342,7 +361,7 @@ class TestDataFlow:
             description="E2E pipeline test alert",
             source_ip="45.33.32.156",
             target_ip="10.0.0.50",
-            file_hash="5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"
+            file_hash="5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
         )
         print(f"  ✓ Alert ingested: {alert.alert_id}")
 
@@ -355,15 +374,10 @@ class TestDataFlow:
         # Step 3: Context Enrichment
         print("\nStep 3: Context Enrichment")
         network_context = NetworkContext(
-            ip_address=alert.source_ip,
-            is_internal=False,
-            reputation_score=10.0
+            ip_address=alert.source_ip, is_internal=False, reputation_score=10.0
         )
         enriched = EnrichedContext(
-            alert_id=alert.alert_id,
-            network=network_context,
-            threat_intel_hits=1,
-            similar_alerts=[]
+            alert_id=alert.alert_id, network=network_context, threat_intel_hits=1, similar_alerts=[]
         )
         print(f"  ✓ Alert enriched with network context")
 
@@ -378,7 +392,7 @@ class TestDataFlow:
             asset_criticality_score=80.0,
             exploitability_score=75.0,
             key_factors=["High severity", "External IP", "Malware detected"],
-            requires_human_review=False
+            requires_human_review=False,
         )
 
         remediation = [
@@ -387,7 +401,7 @@ class TestDataFlow:
                 priority=RemediationPriority.HIGH,
                 title="Isolate host",
                 description="Disconnect from network",
-                is_automated=True
+                is_automated=True,
             )
         ]
 
@@ -396,9 +410,11 @@ class TestDataFlow:
             risk_assessment=risk_assessment,
             remediation_actions=remediation,
             requires_human_review=False,
-            processing_time_ms=1520.0
+            processing_time_ms=1520.0,
         )
-        print(f"  ✓ Triage complete: Risk={triage.risk_assessment.risk_level}, Score={triage.risk_assessment.risk_score}")
+        print(
+            f"  ✓ Triage complete: Risk={triage.risk_assessment.risk_level}, Score={triage.risk_assessment.risk_score}"
+        )
 
         # Step 5: Workflow Automation
         print("\nStep 5: Workflow Automation")
@@ -408,7 +424,7 @@ class TestDataFlow:
                 workflow_id="automated-response",
                 status=WorkflowStatus.RUNNING,
                 input={"alert_id": alert.alert_id},
-                started_at=datetime.utcnow()
+                started_at=datetime.utcnow(),
             )
             print(f"  ✓ Workflow triggered: {workflow.workflow_id}")
 
@@ -439,7 +455,7 @@ class TestPerformanceMetrics:
             timestamp=datetime.utcnow(),
             alert_type=AlertType.MALWARE,
             severity=Severity.HIGH,
-            description="SLA test alert"
+            description="SLA test alert",
         )
 
         # Simulate triage (normally takes 1-3 seconds)
@@ -468,7 +484,7 @@ class TestPerformanceMetrics:
                 timestamp=datetime.utcnow(),
                 alert_type=AlertType.MALWARE,
                 severity=Severity.HIGH,
-                description=f"Throughput test alert {i}"
+                description=f"Throughput test alert {i}",
             )
             # Simulate processing
             await asyncio.sleep(0.01)

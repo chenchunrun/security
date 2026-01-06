@@ -83,12 +83,11 @@ async def mock_db():
     async with engine.begin() as conn:
         # Create all tables
         from shared.database.base import Base
+
         await conn.run_sync(Base.metadata.create_all)
 
     # Create session
-    async_session_maker = sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
+    async_session_maker = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with async_session_maker() as session:
         yield session
@@ -104,6 +103,7 @@ def mock_redis():
     # Use fakeredis for testing
     try:
         import fakeredis
+
         client = fakeredis.FakeStrictRedis(decode_responses=False)
     except ImportError:
         client = redis.Redis(decode_responses=False, db=15)  # Use test DB
@@ -136,7 +136,7 @@ def sample_alert():
         description="Test malware alert",
         source_ip="45.33.32.156",
         target_ip="10.0.0.50",
-        file_hash="5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"
+        file_hash="5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
     )
 
 
@@ -144,28 +144,29 @@ def sample_alert():
 def sample_triage_result():
     """Sample triage result for testing."""
     from shared.models import (
-        TriageResult, RiskAssessment, RiskLevel,
-        RemediationAction, ActionType, RemediationPriority
+        TriageResult,
+        RiskAssessment,
+        RiskLevel,
+        RemediationAction,
+        ActionType,
+        RemediationPriority,
     )
 
     return TriageResult(
         alert_id="ALT-TEST-001",
         risk_assessment=RiskAssessment(
-            risk_score=75.5,
-            risk_level=RiskLevel.HIGH,
-            confidence=0.85,
-            requires_human_review=False
+            risk_score=75.5, risk_level=RiskLevel.HIGH, confidence=0.85, requires_human_review=False
         ),
         remediation_actions=[
             RemediationAction(
                 action_type=ActionType.ISOLATE_HOST,
                 title="Isolate affected system",
                 description="Isolate affected system from network",
-                priority=RemediationPriority.HIGH
+                priority=RemediationPriority.HIGH,
             )
         ],
         requires_human_review=False,
-        processing_time_ms=1500.0
+        processing_time_ms=1500.0,
     )
 
 
@@ -179,11 +180,12 @@ def sample_workflow_execution():
         workflow_id="alert-processing",
         status=WorkflowStatus.RUNNING,
         input={"alert_id": "ALT-001"},
-        started_at=datetime.utcnow()
+        started_at=datetime.utcnow(),
     )
 
 
 # Test clients for FastAPI apps
+
 
 @pytest.fixture
 def alert_ingestor_client():
@@ -206,23 +208,18 @@ async def async_llm_router_client():
     """Async test client for LLM Router service."""
     from services.llm_router.main import app
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
 
 
 # Mock data generators
 
+
 @pytest.fixture
 def generate_alert_data():
     """Factory function to generate alert data."""
-    def _generate(
-        alert_id: str = None,
-        severity: str = "medium",
-        alert_type: str = "malware"
-    ):
+
+    def _generate(alert_id: str = None, severity: str = "medium", alert_type: str = "malware"):
         return {
             "alert_id": alert_id or f"ALT-{uuid.uuid4()}",
             "timestamp": datetime.utcnow().isoformat(),
@@ -230,13 +227,14 @@ def generate_alert_data():
             "severity": severity,
             "description": f"Test {alert_type} alert",
             "source_ip": "45.33.32.156",
-            "target_ip": "10.0.0.50"
+            "target_ip": "10.0.0.50",
         }
 
     return _generate
 
 
 # Cleanup fixtures
+
 
 @pytest.fixture(autouse=True)
 async def cleanup_test_data():
@@ -249,11 +247,12 @@ async def cleanup_test_data():
 
 # Performance testing fixtures
 
+
 @pytest.fixture
 def benchmark_thresholds():
     """Performance benchmark thresholds."""
     return {
         "api_response_time": 0.5,  # 500ms
-        "db_query_time": 0.1,       # 100ms
+        "db_query_time": 0.1,  # 100ms
         "llm_response_time": 30.0,  # 30 seconds
     }

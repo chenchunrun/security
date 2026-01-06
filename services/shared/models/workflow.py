@@ -72,27 +72,20 @@ class WorkflowDefinition(BaseModel):
 
     workflow_id: str = Field(..., description="Unique workflow identifier")
     name: str = Field(..., min_length=1, max_length=200, description="Workflow name")
-    description: str = Field(
-        ..., min_length=1, max_length=1000, description="Workflow description"
-    )
+    description: str = Field(..., min_length=1, max_length=1000, description="Workflow description")
     version: str = Field(..., description="Workflow version")
-    steps: list[dict[str, Any]] = Field(
-        default_factory=list, description="Workflow steps"
-    )
-    timeout_seconds: int = Field(
-        default=3600, ge=0, description="Workflow timeout"
-    )
+    steps: list[dict[str, Any]] = Field(default_factory=list, description="Workflow steps")
+    timeout_seconds: int = Field(default=3600, ge=0, description="Workflow timeout")
 
     # Configuration
-    retry_policy: dict[str, Any] = Field(
-        default_factory=dict, description="Retry policy"
-    )
+    retry_policy: dict[str, Any] = Field(default_factory=dict, description="Retry policy")
     notification_settings: dict[str, Any] = Field(
         default_factory=dict, description="Notification settings"
     )
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "workflow_id": "alert-processing",
                 "name": "Alert Processing Workflow",
                 "description": "Standard workflow for processing security alerts",
@@ -100,10 +93,11 @@ class WorkflowDefinition(BaseModel):
                 "steps": [
                     {"name": "enrich", "type": "activity"},
                     {"name": "analyze", "type": "activity"},
-                    {"name": "human_review", "type": "human_task"}
-                ]
+                    {"name": "human_review", "type": "human_task"},
+                ],
             }
-    })
+        }
+    )
 
 
 class WorkflowExecution(BaseModel):
@@ -126,41 +120,33 @@ class WorkflowExecution(BaseModel):
     status: WorkflowStatus = Field(..., description="Execution status")
 
     # Input/Output
-    input: dict[str, Any] = Field(
-        default_factory=dict, description="Workflow input parameters"
-    )
-    output: Optional[dict[str, Any]] = Field(
-        default=None, description="Workflow output"
-    )
+    input: dict[str, Any] = Field(default_factory=dict, description="Workflow input parameters")
+    output: Optional[dict[str, Any]] = Field(default=None, description="Workflow output")
     error: Optional[str] = Field(default=None, description="Error message if failed")
 
     # Timestamps
     started_at: datetime = Field(
         default_factory=datetime.utcnow, description="Execution start time"
     )
-    completed_at: Optional[datetime] = Field(
-        default=None, description="Execution completion time"
-    )
+    completed_at: Optional[datetime] = Field(default=None, description="Execution completion time")
 
     # Progress
-    current_step: Optional[str] = Field(
-        default=None, description="Current step name"
-    )
-    progress: float = Field(
-        default=0.0, ge=0.0, le=1.0, description="Progress (0-1)"
-    )
+    current_step: Optional[str] = Field(default=None, description="Current step name")
+    progress: float = Field(default=0.0, ge=0.0, le=1.0, description="Progress (0-1)")
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "execution_id": "exec-abc-123",
                 "workflow_id": "alert-processing",
                 "status": "running",
                 "input": {"alert_id": "ALT-001"},
                 "started_at": "2025-01-05T12:00:00Z",
                 "current_step": "analyze",
-                "progress": 0.6
+                "progress": 0.6,
             }
-    })
+        }
+    )
 
 
 class HumanTask(BaseModel):
@@ -182,16 +168,10 @@ class HumanTask(BaseModel):
     """
 
     task_id: str = Field(..., description="Unique task identifier")
-    execution_id: str = Field(
-        ..., description="Associated workflow execution"
-    )
+    execution_id: str = Field(..., description="Associated workflow execution")
     task_type: str = Field(..., description="Type of human task")
-    title: str = Field(
-        ..., min_length=1, max_length=200, description="Task title"
-    )
-    description: str = Field(
-        ..., min_length=1, max_length=2000, description="Task description"
-    )
+    title: str = Field(..., min_length=1, max_length=200, description="Task title")
+    description: str = Field(..., min_length=1, max_length=2000, description="Task description")
 
     assigned_to: Optional[str] = Field(default=None, description="Task assignee")
     status: TaskStatus = Field(..., description="Task status")
@@ -199,26 +179,19 @@ class HumanTask(BaseModel):
 
     # Dates
     due_date: Optional[datetime] = Field(default=None, description="Task due date")
-    created_at: datetime = Field(
-        default_factory=datetime.utcnow, description="Task creation time"
-    )
-    completed_at: Optional[datetime] = Field(
-        default=None, description="Task completion time"
-    )
+    created_at: datetime = Field(default_factory=datetime.utcnow, description="Task creation time")
+    completed_at: Optional[datetime] = Field(default=None, description="Task completion time")
 
     # Task data
-    input_data: dict[str, Any] = Field(
-        default_factory=dict, description="Input data for task"
-    )
-    output_data: dict[str, Any] = Field(
-        default_factory=dict, description="Output data from task"
-    )
+    input_data: dict[str, Any] = Field(default_factory=dict, description="Input data for task")
+    output_data: dict[str, Any] = Field(default_factory=dict, description="Output data from task")
 
     # Notes
     notes: Optional[str] = Field(default=None, description="Task notes")
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "task_id": "task-xyz-789",
                 "execution_id": "exec-abc-123",
                 "task_type": "alert_review",
@@ -227,9 +200,10 @@ class HumanTask(BaseModel):
                 "assigned_to": "analyst@example.com",
                 "status": "assigned",
                 "priority": "high",
-                "due_date": "2025-01-05T18:00:00Z"
+                "due_date": "2025-01-05T18:00:00Z",
             }
-    })
+        }
+    )
 
 
 class PlaybookAction(BaseModel):
@@ -249,37 +223,33 @@ class PlaybookAction(BaseModel):
     action_id: str = Field(..., description="Unique action identifier")
     action_type: str = Field(..., description="Type of action")
     name: str = Field(..., min_length=1, max_length=200, description="Action name")
-    description: str = Field(
-        ..., min_length=1, max_length=1000, description="Action description"
-    )
+    description: str = Field(..., min_length=1, max_length=1000, description="Action description")
 
     # Configuration
-    parameters: dict[str, Any] = Field(
-        default_factory=dict, description="Action parameters"
-    )
+    parameters: dict[str, Any] = Field(default_factory=dict, description="Action parameters")
     timeout_seconds: int = Field(default=300, ge=0, description="Action timeout")
-    retry_policy: dict[str, Any] = Field(
-        default_factory=dict, description="Retry policy"
-    )
+    retry_policy: dict[str, Any] = Field(default_factory=dict, description="Retry policy")
 
     # Conditions
     conditions: list[dict[str, Any]] = Field(
         default_factory=list, description="Execution conditions"
     )
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "action_id": "isolate-host",
                 "action_type": "ssh_command",
                 "name": "Isolate host from network",
                 "description": "Execute firewall command to block host",
                 "parameters": {
                     "command": "iptables -A INPUT -s 10.0.0.50 -j DROP",
-                    "target_host": "10.0.0.50"
+                    "target_host": "10.0.0.50",
                 },
-                "timeout_seconds": 30
+                "timeout_seconds": 30,
             }
-    })
+        }
+    )
 
 
 class AutomationPlaybook(BaseModel):
@@ -298,9 +268,7 @@ class AutomationPlaybook(BaseModel):
 
     playbook_id: str = Field(..., description="Unique playbook identifier")
     name: str = Field(..., min_length=1, max_length=200, description="Playbook name")
-    description: str = Field(
-        ..., min_length=1, max_length=1000, description="Playbook description"
-    )
+    description: str = Field(..., min_length=1, max_length=1000, description="Playbook description")
     version: str = Field(..., description="Playbook version")
 
     actions: list[PlaybookAction] = Field(
@@ -308,9 +276,7 @@ class AutomationPlaybook(BaseModel):
     )
 
     # Configuration
-    approval_required: bool = Field(
-        default=False, description="Whether approval is required"
-    )
+    approval_required: bool = Field(default=False, description="Whether approval is required")
     timeout_seconds: int = Field(default=3600, ge=0, description="Total timeout")
 
     # Triggers
@@ -318,8 +284,9 @@ class AutomationPlaybook(BaseModel):
         default_factory=dict, description="Conditions that trigger playbook"
     )
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "playbook_id": "malware-response",
                 "name": "Malware Response Playbook",
                 "description": "Automated response actions for malware alerts",
@@ -329,19 +296,20 @@ class AutomationPlaybook(BaseModel):
                         "action_id": "isolate-host",
                         "action_type": "ssh_command",
                         "name": "Isolate infected host",
-                        "description": "Disconnect host from network"
+                        "description": "Disconnect host from network",
                     },
                     {
                         "action_id": "quarantine-file",
                         "action_type": "edr_command",
                         "name": "Quarantine malicious file",
-                        "description": "Quarantine detected malicious file"
-                    }
+                        "description": "Quarantine detected malicious file",
+                    },
                 ],
                 "approval_required": True,
-                "timeout_seconds": 600
+                "timeout_seconds": 600,
             }
-    })
+        }
+    )
 
 
 class PlaybookExecution(BaseModel):
@@ -366,9 +334,7 @@ class PlaybookExecution(BaseModel):
 
     # Progress
     current_action_index: int = Field(default=0, ge=0, description="Current action index")
-    current_action: Optional[str] = Field(
-        default=None, description="Currently executing action"
-    )
+    current_action: Optional[str] = Field(default=None, description="Currently executing action")
 
     # Results
     results: list[dict[str, Any]] = Field(
@@ -379,32 +345,28 @@ class PlaybookExecution(BaseModel):
     approval_status: Optional[str] = Field(
         default=None, description="Approval status (if required)"
     )
-    approved_by: Optional[str] = Field(
-        default=None, description="Who approved execution"
-    )
+    approved_by: Optional[str] = Field(default=None, description="Who approved execution")
 
     # Timestamps
     started_at: datetime = Field(
         default_factory=datetime.utcnow, description="Execution start time"
     )
-    completed_at: Optional[datetime] = Field(
-        default=None, description="Execution completion time"
-    )
+    completed_at: Optional[datetime] = Field(default=None, description="Execution completion time")
 
     # Error handling
     error: Optional[str] = Field(default=None, description="Error message if failed")
-    rollback_performed: bool = Field(
-        default=False, description="Whether rollback was performed"
-    )
+    rollback_performed: bool = Field(default=False, description="Whether rollback was performed")
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "execution_id": "pb-exec-123",
                 "playbook_id": "malware-response",
                 "trigger_alert_id": "ALT-001",
                 "status": "running",
                 "current_action_index": 1,
                 "current_action": "quarantine-file",
-                "started_at": "2025-01-05T12:00:00Z"
+                "started_at": "2025-01-05T12:00:00Z",
             }
-    })
+        }
+    )

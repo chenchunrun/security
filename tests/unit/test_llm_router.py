@@ -29,6 +29,7 @@ class TestLLMRouterAPI:
     def client(self):
         """Create test client."""
         from services.llm_router.main import app
+
         return TestClient(app)
 
     @pytest.fixture
@@ -42,27 +43,22 @@ class TestLLMRouterAPI:
             # Mock successful API response
             mock_response = MagicMock()
             mock_response.status_code = 200
-            mock_response.json = AsyncMock(return_value={
-                "id": "test-response",
-                "object": "chat.completion",
-                "created": 1234567890,
-                "model": "deepseek-v3",
-                "choices": [
-                    {
-                        "index": 0,
-                        "message": {
-                            "role": "assistant",
-                            "content": "Test response"
-                        },
-                        "finish_reason": "stop"
-                    }
-                ],
-                "usage": {
-                    "prompt_tokens": 10,
-                    "completion_tokens": 5,
-                    "total_tokens": 15
+            mock_response.json = AsyncMock(
+                return_value={
+                    "id": "test-response",
+                    "object": "chat.completion",
+                    "created": 1234567890,
+                    "model": "deepseek-v3",
+                    "choices": [
+                        {
+                            "index": 0,
+                            "message": {"role": "assistant", "content": "Test response"},
+                            "finish_reason": "stop",
+                        }
+                    ],
+                    "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
                 }
-            })
+            )
             mock_response.raise_for_status = MagicMock()
 
             client_instance.post = AsyncMock(return_value=mock_response)
@@ -103,10 +99,8 @@ class TestLLMRouterAPI:
         """Test routing decision endpoint."""
         request_data = {
             "task_type": "triage",
-            "messages": [
-                {"role": "user", "content": "Test alert analysis"}
-            ],
-            "temperature": 0.7
+            "messages": [{"role": "user", "content": "Test alert analysis"}],
+            "temperature": 0.7,
         }
 
         response = client.post("/api/v1/route", json=request_data)
@@ -130,7 +124,7 @@ class TestLLMRouterLogic:
             task_type=TaskType.TRIAGE,
             messages=[{"role": "user", "content": "Test"}],
             model=LLMModel.DEEPSEEK_V3,
-            temperature=0.7
+            temperature=0.7,
         )
 
         decision = route_request(request)
@@ -146,7 +140,7 @@ class TestLLMRouterLogic:
         request = LLMRequest(
             task_type=TaskType.TRIAGE,
             messages=[{"role": "user", "content": "Analyze alert"}],
-            temperature=0.7
+            temperature=0.7,
         )
 
         decision = route_request(request)
@@ -162,7 +156,7 @@ class TestLLMRouterLogic:
         alert = {
             "source_ip": "45.33.32.156",
             "target_ip": "10.0.0.50",
-            "file_hash": "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"
+            "file_hash": "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
         }
 
         iocs = extract_iocs(alert)

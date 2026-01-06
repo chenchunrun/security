@@ -85,6 +85,7 @@ def is_internal_ip(ip_str: str) -> bool:
 # Network Context Collection
 # =============================================================================
 
+
 async def get_network_context(ip: str) -> Dict[str, Any]:
     """
     Collect network context for an IP address.
@@ -116,12 +117,14 @@ async def get_network_context(ip: str) -> Dict[str, Any]:
 
         # Enrich internal IPs
         if context["is_internal"]:
-            context.update({
-                "subnet": get_subnet(ip),
-                "network_type": "internal",
-                "country": "Internal",
-                "reputation_score": 80.0,
-            })
+            context.update(
+                {
+                    "subnet": get_subnet(ip),
+                    "network_type": "internal",
+                    "country": "Internal",
+                    "reputation_score": 80.0,
+                }
+            )
         else:
             # TODO: Implement external IP enrichment
             # - GeoIP lookup (MaxMind, IPInfo)
@@ -129,12 +132,14 @@ async def get_network_context(ip: str) -> Dict[str, Any]:
             # - Threat intelligence feeds
             # - Reputation services (AlienVault OTX, CrowdStrike)
 
-            context.update({
-                "network_type": "external",
-                "country": "Unknown",  # Would be from GeoIP
-                "city": None,
-                "isp": None,
-            })
+            context.update(
+                {
+                    "network_type": "external",
+                    "country": "Unknown",  # Would be from GeoIP
+                    "city": None,
+                    "isp": None,
+                }
+            )
 
         # Cache result
         expiry_time = datetime.utcnow().timestamp() + CACHE_TTL_SECONDS
@@ -142,7 +147,7 @@ async def get_network_context(ip: str) -> Dict[str, Any]:
 
         logger.debug(
             f"Network context collected for {ip}",
-            extra={"ip": ip, "is_internal": context["is_internal"]}
+            extra={"ip": ip, "is_internal": context["is_internal"]},
         )
 
         return context
@@ -192,6 +197,7 @@ def get_subnet(ip: str) -> Optional[str]:
 # =============================================================================
 # Asset Context Collection
 # =============================================================================
+
 
 async def get_asset_context(asset_id: str) -> Dict[str, Any]:
     """
@@ -253,6 +259,7 @@ async def get_asset_context(asset_id: str) -> Dict[str, Any]:
 # =============================================================================
 # User Context Collection
 # =============================================================================
+
 
 async def get_user_context(user_id: str) -> Dict[str, Any]:
     """
@@ -317,6 +324,7 @@ async def get_user_context(user_id: str) -> Dict[str, Any]:
 # Context Enrichment
 # =============================================================================
 
+
 async def enrich_alert(alert: SecurityAlert) -> Dict[str, Any]:
     """
     Enrich alert with context information.
@@ -375,6 +383,7 @@ async def enrich_alert(alert: SecurityAlert) -> Dict[str, Any]:
 # Cache Management
 # =============================================================================
 
+
 async def cleanup_cache():
     """
     Periodic cache cleanup task.
@@ -383,10 +392,7 @@ async def cleanup_cache():
     while True:
         try:
             now = datetime.utcnow().timestamp()
-            expired_keys = [
-                key for key, (_, expiry) in context_cache.items()
-                if now >= expiry
-            ]
+            expired_keys = [key for key, (_, expiry) in context_cache.items() if now >= expiry]
 
             for key in expired_keys:
                 del context_cache[key]
@@ -405,6 +411,7 @@ async def cleanup_cache():
 # =============================================================================
 # FastAPI Application
 # =============================================================================
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -480,8 +487,10 @@ app.add_middleware(
 # Background Task: Message Consumer
 # =============================================================================
 
+
 async def consume_alerts():
     """Consume normalized alerts and enrich with context."""
+
     async def process_message(message: dict):
         try:
             payload = message.get("payload", {})
@@ -532,6 +541,7 @@ async def consume_alerts():
 # =============================================================================
 # API Endpoints
 # =============================================================================
+
 
 @app.get("/health", tags=["Health"])
 async def health_check():

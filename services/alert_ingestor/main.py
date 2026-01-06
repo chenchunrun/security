@@ -74,8 +74,7 @@ async def check_rate_limit(request: Request) -> None:
 
     # Clean old entries
     rate_limit_tracker[client_ip] = [
-        ts for ts in rate_limit_tracker[client_ip]
-        if (now - ts).total_seconds() < RATE_LIMIT_WINDOW
+        ts for ts in rate_limit_tracker[client_ip] if (now - ts).total_seconds() < RATE_LIMIT_WINDOW
     ]
 
     # Check limit

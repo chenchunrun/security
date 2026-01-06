@@ -61,26 +61,26 @@ DEFAULT_WORKFLOWS = {
                 "name": "enrich",
                 "type": "activity",
                 "description": "Enrich alert with context",
-                "service": "context_collector"
+                "service": "context_collector",
             },
             {
                 "name": "analyze",
                 "type": "activity",
                 "description": "AI triage analysis",
-                "service": "ai_triage_agent"
+                "service": "ai_triage_agent",
             },
             {
                 "name": "auto_response",
                 "type": "decision",
                 "description": "Check if auto-response is needed",
-                "condition": "${risk_level == 'CRITICAL' or risk_level == 'HIGH'}"
+                "condition": "${risk_level == 'CRITICAL' or risk_level == 'HIGH'}",
             },
             {
                 "name": "human_review",
                 "type": "human_task",
                 "description": "Security analyst review",
-                "assignee": "security-team"
-            }
+                "assignee": "security-team",
+            },
         ],
         timeout_seconds=3600,
     ),
@@ -90,26 +90,10 @@ DEFAULT_WORKFLOWS = {
         description="Workflow for handling security incidents",
         version="1.0.0",
         steps=[
-            {
-                "name": "assess",
-                "type": "activity",
-                "description": "Initial incident assessment"
-            },
-            {
-                "name": "contain",
-                "type": "activity",
-                "description": "Contain the threat"
-            },
-            {
-                "name": "eradicate",
-                "type": "activity",
-                "description": "Eradicate threat"
-            },
-            {
-                "name": "recover",
-                "type": "activity",
-                "description": "Recover systems"
-            }
+            {"name": "assess", "type": "activity", "description": "Initial incident assessment"},
+            {"name": "contain", "type": "activity", "description": "Contain the threat"},
+            {"name": "eradicate", "type": "activity", "description": "Eradicate threat"},
+            {"name": "recover", "type": "activity", "description": "Recover systems"},
         ],
         timeout_seconds=7200,
     ),
@@ -158,7 +142,7 @@ app = FastAPI(
     title="Workflow Engine Service",
     description="Manages workflow definitions and executions",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -170,8 +154,7 @@ app.add_middleware(
 
 
 async def execute_workflow_step(
-    execution: WorkflowExecution,
-    step: Dict[str, Any]
+    execution: WorkflowExecution, step: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
     Execute a single workflow step.
@@ -200,10 +183,10 @@ async def execute_workflow_step(
                         "payload": {
                             "execution_id": execution.execution_id,
                             "step": step_name,
-                            "input": execution.input
+                            "input": execution.input,
                         },
-                        "timestamp": datetime.utcnow().isoformat()
-                    }
+                        "timestamp": datetime.utcnow().isoformat(),
+                    },
                 )
                 return {"status": "completed", "output": {}}
 
@@ -218,7 +201,7 @@ async def execute_workflow_step(
                 assigned_to=step.get("assignee", "security-team"),
                 status=TaskStatus.ASSIGNED,
                 priority=TaskPriority.MEDIUM,
-                input_data=execution.input.copy()
+                input_data=execution.input.copy(),
             )
 
             # TODO: Save task to database
@@ -227,7 +210,7 @@ async def execute_workflow_step(
             return {
                 "status": "pending",
                 "task_id": task.task_id,
-                "message": "Human task created, awaiting completion"
+                "message": "Human task created, awaiting completion",
             }
 
         elif step_type == "decision":
@@ -296,8 +279,8 @@ async def execute_workflow(execution: WorkflowExecution):
                 "message_id": str(uuid.uuid4()),
                 "message_type": "workflow.completed",
                 "payload": execution.model_dump(),
-                "timestamp": datetime.utcnow().isoformat()
-            }
+                "timestamp": datetime.utcnow().isoformat(),
+            },
         )
 
         logger.info(
@@ -313,6 +296,7 @@ async def execute_workflow(execution: WorkflowExecution):
 
 async def consume_workflow_triggers():
     """Consume workflow trigger messages from queue."""
+
     async def process_message(message: dict):
         try:
             payload = message["payload"]
@@ -333,10 +317,7 @@ async def consume_workflow_triggers():
     await consumer.consume(process_message)
 
 
-def start_workflow_execution(
-    workflow_id: str,
-    input_data: Dict[str, Any]
-) -> WorkflowExecution:
+def start_workflow_execution(workflow_id: str, input_data: Dict[str, Any]) -> WorkflowExecution:
     """
     Start a new workflow execution.
 
@@ -352,7 +333,7 @@ def start_workflow_execution(
         workflow_id=workflow_id,
         status=WorkflowStatus.PENDING,
         input=input_data,
-        started_at=datetime.utcnow()
+        started_at=datetime.utcnow(),
     )
 
     # Start execution in background
@@ -395,6 +376,7 @@ async def monitor_executions():
 
 # API Endpoints
 
+
 @app.post("/api/v1/workflows/definitions", response_model=Dict[str, Any])
 async def create_workflow_definition(definition: WorkflowDefinition):
     """Create a new workflow definition."""
@@ -406,17 +388,13 @@ async def create_workflow_definition(definition: WorkflowDefinition):
         return {
             "success": True,
             "data": definition.model_dump(),
-            "meta": {
-                "timestamp": datetime.utcnow().isoformat(),
-                "request_id": str(uuid.uuid4())
-            }
+            "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
         }
 
     except Exception as e:
         logger.error(f"Failed to create workflow definition: {e}", exc_info=True)
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to create workflow definition: {str(e)}"
+            status_code=500, detail=f"Failed to create workflow definition: {str(e)}"
         )
 
 
@@ -426,16 +404,10 @@ async def list_workflow_definitions():
     return {
         "success": True,
         "data": {
-            "workflows": [
-                wf.model_dump()
-                for wf in workflow_definitions.values()
-            ],
-            "total": len(workflow_definitions)
+            "workflows": [wf.model_dump() for wf in workflow_definitions.values()],
+            "total": len(workflow_definitions),
         },
-        "meta": {
-            "timestamp": datetime.utcnow().isoformat(),
-            "request_id": str(uuid.uuid4())
-        }
+        "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
     }
 
 
@@ -444,26 +416,18 @@ async def get_workflow_definition(workflow_id: str):
     """Get a specific workflow definition."""
     workflow = workflow_definitions.get(workflow_id)
     if not workflow:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Workflow definition not found: {workflow_id}"
-        )
+        raise HTTPException(status_code=404, detail=f"Workflow definition not found: {workflow_id}")
 
     return {
         "success": True,
         "data": workflow.model_dump(),
-        "meta": {
-            "timestamp": datetime.utcnow().isoformat(),
-            "request_id": str(uuid.uuid4())
-        }
+        "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
     }
 
 
 @app.post("/api/v1/workflows/execute", response_model=Dict[str, Any])
 async def execute_workflow_api(
-    workflow_id: str,
-    input_data: Dict[str, Any],
-    background_tasks: BackgroundTasks
+    workflow_id: str, input_data: Dict[str, Any], background_tasks: BackgroundTasks
 ):
     """
     Start workflow execution via API.
@@ -476,8 +440,7 @@ async def execute_workflow_api(
         # Check if workflow exists
         if workflow_id not in workflow_definitions:
             raise HTTPException(
-                status_code=404,
-                detail=f"Workflow definition not found: {workflow_id}"
+                status_code=404, detail=f"Workflow definition not found: {workflow_id}"
             )
 
         # Start execution
@@ -489,28 +452,21 @@ async def execute_workflow_api(
                 "execution_id": execution.execution_id,
                 "workflow_id": execution.workflow_id,
                 "status": execution.status.value,
-                "started_at": execution.started_at.isoformat()
+                "started_at": execution.started_at.isoformat(),
             },
-            "meta": {
-                "timestamp": datetime.utcnow().isoformat(),
-                "request_id": str(uuid.uuid4())
-            }
+            "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
         }
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to start workflow execution: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to start workflow execution: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to start workflow execution: {str(e)}")
 
 
 @app.get("/api/v1/workflows/executions", response_model=Dict[str, Any])
 async def list_executions(
-    status: Optional[WorkflowStatus] = None,
-    workflow_id: Optional[str] = None
+    status: Optional[WorkflowStatus] = None, workflow_id: Optional[str] = None
 ):
     """List workflow executions, optionally filtered by status or workflow."""
     executions = list(active_executions.values())
@@ -523,14 +479,8 @@ async def list_executions(
 
     return {
         "success": True,
-        "data": {
-            "executions": [e.model_dump() for e in executions],
-            "total": len(executions)
-        },
-        "meta": {
-            "timestamp": datetime.utcnow().isoformat(),
-            "request_id": str(uuid.uuid4())
-        }
+        "data": {"executions": [e.model_dump() for e in executions], "total": len(executions)},
+        "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
     }
 
 
@@ -539,18 +489,12 @@ async def get_execution(execution_id: str):
     """Get a specific workflow execution."""
     execution = active_executions.get(execution_id)
     if not execution:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Execution not found: {execution_id}"
-        )
+        raise HTTPException(status_code=404, detail=f"Execution not found: {execution_id}")
 
     return {
         "success": True,
         "data": execution.model_dump(),
-        "meta": {
-            "timestamp": datetime.utcnow().isoformat(),
-            "request_id": str(uuid.uuid4())
-        }
+        "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
     }
 
 
@@ -559,15 +503,11 @@ async def cancel_execution(execution_id: str):
     """Cancel a running workflow execution."""
     execution = active_executions.get(execution_id)
     if not execution:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Execution not found: {execution_id}"
-        )
+        raise HTTPException(status_code=404, detail=f"Execution not found: {execution_id}")
 
     if execution.status not in [WorkflowStatus.PENDING, WorkflowStatus.RUNNING]:
         raise HTTPException(
-            status_code=400,
-            detail=f"Cannot cancel execution in status: {execution.status.value}"
+            status_code=400, detail=f"Cannot cancel execution in status: {execution.status.value}"
         )
 
     execution.status = WorkflowStatus.CANCELLED
@@ -576,10 +516,7 @@ async def cancel_execution(execution_id: str):
     return {
         "success": True,
         "message": "Execution cancelled",
-        "meta": {
-            "timestamp": datetime.utcnow().isoformat(),
-            "request_id": str(uuid.uuid4())
-        }
+        "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
     }
 
 
@@ -592,8 +529,8 @@ async def health_check():
         "timestamp": datetime.utcnow().isoformat(),
         "workflows": {
             "definitions": len(workflow_definitions),
-            "active_executions": len(active_executions)
-        }
+            "active_executions": len(active_executions),
+        },
     }
 
 

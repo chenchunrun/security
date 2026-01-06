@@ -58,7 +58,7 @@ class TestSecurityAlert:
                 alert_type=AlertType.MALWARE,
                 severity=Severity.HIGH,
                 description="Test",
-                source_ip="999.999.999.999"  # Invalid IP
+                source_ip="999.999.999.999",  # Invalid IP
             )
 
     def test_alert_validation_invalid_hash(self):
@@ -70,7 +70,7 @@ class TestSecurityAlert:
                 alert_type=AlertType.MALWARE,
                 severity=Severity.HIGH,
                 description="Test",
-                file_hash="not-a-hash"  # Invalid hash
+                file_hash="not-a-hash",  # Invalid hash
             )
 
     def test_alert_validation_future_timestamp(self):
@@ -83,12 +83,12 @@ class TestSecurityAlert:
                 timestamp=future_time,
                 alert_type=AlertType.MALWARE,
                 severity=Severity.HIGH,
-                description="Test"
+                description="Test",
             )
 
     def test_alert_serialization(self, sample_alert):
         """Test alert can be serialized to JSON."""
-        alert_dict = sample_alert.model_dump(mode='json')
+        alert_dict = sample_alert.model_dump(mode="json")
 
         assert alert_dict["alert_id"] == "ALT-TEST-001"
         assert alert_dict["alert_type"] == "malware"
@@ -117,7 +117,7 @@ class TestTriageResult:
                 reasoning="Test",
                 recommended_actions=[],
                 triaged_by="ai-agent",
-                triaged_at=datetime.utcnow()
+                triaged_at=datetime.utcnow(),
             )
 
 
@@ -138,7 +138,7 @@ class TestWorkflowExecution:
             workflow_id="test-workflow",
             status=WorkflowStatus.RUNNING,
             input={},
-            progress=0.5
+            progress=0.5,
         )
 
         assert 0.0 <= exec.progress <= 1.0
@@ -149,7 +149,7 @@ class TestWorkflowExecution:
                 workflow_id="test",
                 status=WorkflowStatus.RUNNING,
                 input={},
-                progress=1.5  # Invalid: > 1.0
+                progress=1.5,  # Invalid: > 1.0
             )
 
 
@@ -162,10 +162,10 @@ class TestLLMRequest:
             task_type=TaskType.TRIAGE,
             messages=[
                 {"role": "system", "content": "You are a security analyst."},
-                {"role": "user", "content": "Analyze this alert."}
+                {"role": "user", "content": "Analyze this alert."},
             ],
             temperature=0.7,
-            max_tokens=2000
+            max_tokens=2000,
         )
 
         assert request.task_type == TaskType.TRIAGE
@@ -176,11 +176,7 @@ class TestLLMRequest:
     def test_llm_request_empty_messages(self):
         """Test LLM request rejects empty messages."""
         with pytest.raises(ValidationError):
-            LLMRequest(
-                task_type=TaskType.TRIAGE,
-                messages=[],  # Invalid: empty
-                temperature=0.7
-            )
+            LLMRequest(task_type=TaskType.TRIAGE, messages=[], temperature=0.7)  # Invalid: empty
 
     def test_llm_request_temperature_range(self):
         """Test temperature is between 0 and 1."""
@@ -188,7 +184,7 @@ class TestLLMRequest:
             LLMRequest(
                 task_type=TaskType.TRIAGE,
                 messages=[{"role": "user", "content": "Test"}],
-                temperature=1.5  # Invalid: > 1.0
+                temperature=1.5,  # Invalid: > 1.0
             )
 
 
@@ -197,11 +193,7 @@ class TestVectorSearchRequest:
 
     def test_create_search_request(self):
         """Test creating a valid vector search request."""
-        request = VectorSearchRequest(
-            query_text="Malware infection",
-            top_k=5,
-            min_similarity=0.75
-        )
+        request = VectorSearchRequest(query_text="Malware infection", top_k=5, min_similarity=0.75)
 
         assert request.query_text == "Malware infection"
         assert request.top_k == 5
@@ -210,12 +202,9 @@ class TestVectorSearchRequest:
     def test_search_request_with_alert_data(self):
         """Test search request with alert data."""
         request = VectorSearchRequest(
-            alert_data={
-                "alert_type": "malware",
-                "description": "Test alert"
-            },
+            alert_data={"alert_type": "malware", "description": "Test alert"},
             top_k=10,
-            min_similarity=0.8
+            min_similarity=0.8,
         )
 
         assert request.alert_data is not None
@@ -230,15 +219,11 @@ class TestEnrichedContext:
         context = EnrichedContext(
             alert_id="ALT-001",
             source_network=NetworkContext(
-                ip_address="45.33.32.156",
-                is_internal=False,
-                reputation_score=10.0
+                ip_address="45.33.32.156", is_internal=False, reputation_score=10.0
             ),
             target_network=NetworkContext(
-                ip_address="10.0.0.50",
-                is_internal=True,
-                reputation_score=50.0
-            )
+                ip_address="10.0.0.50", is_internal=True, reputation_score=50.0
+            ),
         )
 
         assert context.alert_id == "ALT-001"
@@ -258,7 +243,7 @@ class TestNetworkContext:
             reputation_score=75.0,
             country="US",
             city="San Francisco",
-            asn=15169
+            asn=15169,
         )
 
         assert context.ip_address == "192.168.1.1"
@@ -268,18 +253,10 @@ class TestNetworkContext:
 
     def test_network_context_internal_ip_detection(self):
         """Test internal IP detection."""
-        internal_ips = [
-            "10.0.0.1",
-            "192.168.1.1",
-            "172.16.0.1"
-        ]
+        internal_ips = ["10.0.0.1", "192.168.1.1", "172.16.0.1"]
 
         for ip in internal_ips:
-            context = NetworkContext(
-                ip_address=ip,
-                is_internal=True,
-                reputation_score=50.0
-            )
+            context = NetworkContext(ip_address=ip, is_internal=True, reputation_score=50.0)
             assert context.is_internal is True
 
 

@@ -48,7 +48,7 @@ class TestSystemEndToEnd:
             "severity": "high",
             "description": "System test alert",
             "source_ip": "45.33.32.156",
-            "target_ip": "10.0.0.50"
+            "target_ip": "10.0.0.50",
         }
 
         # Note: This test requires services to be running
@@ -147,7 +147,7 @@ class TestPerformanceBenchmarks:
                 "timestamp": datetime.utcnow().isoformat(),
                 "alert_type": "malware",
                 "severity": "high",
-                "description": f"Performance test alert {i}"
+                "description": f"Performance test alert {i}",
             }
             # In real test: await client.post("/api/v1/alerts", json=alert)
 
@@ -186,15 +186,15 @@ class TestScenarios:
                 "severity": "critical",
                 "description": "Ransomware detected on server",
                 "source_ip": "45.33.32.156",
-                "file_hash": "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"
+                "file_hash": "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
             },
             "expected_flow": [
                 "ingest",
                 "normalize",
                 "enrich",
                 "triage",
-                "auto_response_if_critical"
-            ]
+                "auto_response_if_critical",
+            ],
         }
 
         # Verify scenario structure
@@ -210,13 +210,9 @@ class TestScenarios:
                 "severity": "high",
                 "description": "Spear phishing email",
                 "sender_email": "attacker@malicious.com",
-                "url": "http://malicious-site.com"
+                "url": "http://malicious-site.com",
             },
-            "expected_actions": [
-                "block_sender",
-                "delete_emails",
-                "create_ticket"
-            ]
+            "expected_actions": ["block_sender", "delete_emails", "create_ticket"],
         }
 
         assert scenario["alert"]["alert_type"] == "phishing"

@@ -63,7 +63,7 @@ DEFAULT_PLAYBOOKS = {
                 parameters={
                     "command_template": "iptables -A INPUT -s {target_ip} -j DROP",
                     "target_host": "{target_ip}",
-                    "timeout": 30
+                    "timeout": 30,
                 },
                 timeout_seconds=60,
             ),
@@ -72,10 +72,7 @@ DEFAULT_PLAYBOOKS = {
                 action_type="edr_command",
                 name="Quarantine malicious file",
                 description="Quarantine detected malicious file via EDR",
-                parameters={
-                    "file_hash": "{file_hash}",
-                    "action": "quarantine"
-                },
+                parameters={"file_hash": "{file_hash}", "action": "quarantine"},
                 timeout_seconds=120,
             ),
             PlaybookAction(
@@ -86,17 +83,14 @@ DEFAULT_PLAYBOOKS = {
                 parameters={
                     "endpoint": "api/tickets",
                     "title": "Malware incident - {alert_id}",
-                    "severity": "high"
+                    "severity": "high",
                 },
                 timeout_seconds=30,
             ),
         ],
         approval_required=True,
         timeout_seconds=600,
-        trigger_conditions={
-            "alert_type": "malware",
-            "risk_level": ["CRITICAL", "HIGH"]
-        }
+        trigger_conditions={"alert_type": "malware", "risk_level": ["CRITICAL", "HIGH"]},
     ),
     "phishing-response": AutomationPlaybook(
         playbook_id="phishing-response",
@@ -109,10 +103,7 @@ DEFAULT_PLAYBOOKS = {
                 action_type="email_command",
                 name="Block phishing sender",
                 description="Block email sender at mail gateway",
-                parameters={
-                    "action": "block_sender",
-                    "sender_address": "{sender_email}"
-                },
+                parameters={"action": "block_sender", "sender_address": "{sender_email}"},
                 timeout_seconds=60,
             ),
             PlaybookAction(
@@ -123,17 +114,14 @@ DEFAULT_PLAYBOOKS = {
                 parameters={
                     "action": "delete",
                     "subject": "{email_subject}",
-                    "sender": "{sender_email}"
+                    "sender": "{sender_email}",
                 },
                 timeout_seconds=300,
             ),
         ],
         approval_required=True,
         timeout_seconds=600,
-        trigger_conditions={
-            "alert_type": "phishing",
-            "confidence_threshold": 80
-        }
+        trigger_conditions={"alert_type": "phishing", "confidence_threshold": 80},
     ),
 }
 
@@ -178,15 +166,12 @@ class SSHCommandExecutor(ActionExecutor):
             return {
                 "status": "success",
                 "output": f"Command executed successfully on {target}",
-                "exit_code": 0
+                "exit_code": 0,
             }
 
         except Exception as e:
             logger.error(f"SSH command execution failed: {e}", exc_info=True)
-            return {
-                "status": "failed",
-                "error": str(e)
-            }
+            return {"status": "failed", "error": str(e)}
 
 
 class EDRCommandExecutor(ActionExecutor):
@@ -207,17 +192,11 @@ class EDRCommandExecutor(ActionExecutor):
             # TODO: Implement actual EDR API call
             await asyncio.sleep(1)
 
-            return {
-                "status": "success",
-                "output": f"File {file_hash} quarantined successfully"
-            }
+            return {"status": "success", "output": f"File {file_hash} quarantined successfully"}
 
         except Exception as e:
             logger.error(f"EDR command execution failed: {e}", exc_info=True)
-            return {
-                "status": "failed",
-                "error": str(e)
-            }
+            return {"status": "failed", "error": str(e)}
 
 
 class EmailCommandExecutor(ActionExecutor):
@@ -240,15 +219,12 @@ class EmailCommandExecutor(ActionExecutor):
 
             return {
                 "status": "success",
-                "output": f"Email action {email_action} completed for {sender}"
+                "output": f"Email action {email_action} completed for {sender}",
             }
 
         except Exception as e:
             logger.error(f"Email command execution failed: {e}", exc_info=True)
-            return {
-                "status": "failed",
-                "error": str(e)
-            }
+            return {"status": "failed", "error": str(e)}
 
 
 class APICallExecutor(ActionExecutor):
@@ -289,15 +265,12 @@ class APICallExecutor(ActionExecutor):
                 return {
                     "status": "success",
                     "output": response.json(),
-                    "status_code": response.status_code
+                    "status_code": response.status_code,
                 }
 
         except Exception as e:
             logger.error(f"API call execution failed: {e}", exc_info=True)
-            return {
-                "status": "failed",
-                "error": str(e)
-            }
+            return {"status": "failed", "error": str(e)}
 
 
 # Action executor registry
@@ -310,9 +283,7 @@ ACTION_EXECUTORS = {
 
 
 async def execute_playbook_action(
-    execution: PlaybookExecution,
-    action: PlaybookAction,
-    context: Dict[str, Any]
+    execution: PlaybookExecution, action: PlaybookAction, context: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
     Execute a single playbook action.
@@ -344,8 +315,7 @@ async def execute_playbook_action(
 
         # Execute action
         result = await asyncio.wait_for(
-            executor.execute(action, context),
-            timeout=action.timeout_seconds
+            executor.execute(action, context), timeout=action.timeout_seconds
         )
 
         return result
@@ -354,15 +324,12 @@ async def execute_playbook_action(
         logger.error(f"Action {action.action_id} timed out")
         return {
             "status": "failed",
-            "error": f"Action timed out after {action.timeout_seconds} seconds"
+            "error": f"Action timed out after {action.timeout_seconds} seconds",
         }
 
     except Exception as e:
         logger.error(f"Action execution failed: {e}", exc_info=True)
-        return {
-            "status": "failed",
-            "error": str(e)
-        }
+        return {"status": "failed", "error": str(e)}
 
 
 async def execute_playbook(execution: PlaybookExecution):
@@ -384,7 +351,7 @@ async def execute_playbook(execution: PlaybookExecution):
         context = {
             "alert_id": execution.trigger_alert_id,
             "execution_id": execution.execution_id,
-            **execution.input_data
+            **execution.input_data,
         }
 
         # Check approval
@@ -404,12 +371,14 @@ async def execute_playbook(execution: PlaybookExecution):
             result = await execute_playbook_action(execution, action, context)
 
             # Store result
-            execution.results.append({
-                "action_id": action.action_id,
-                "action_name": action.name,
-                "executed_at": datetime.utcnow().isoformat(),
-                "result": result
-            })
+            execution.results.append(
+                {
+                    "action_id": action.action_id,
+                    "action_name": action.name,
+                    "executed_at": datetime.utcnow().isoformat(),
+                    "result": result,
+                }
+            )
 
             # Check if action failed
             if result.get("status") == "failed":
@@ -433,8 +402,8 @@ async def execute_playbook(execution: PlaybookExecution):
                 "message_id": str(uuid.uuid4()),
                 "message_type": "automation.completed",
                 "payload": execution.model_dump(),
-                "timestamp": datetime.utcnow().isoformat()
-            }
+                "timestamp": datetime.utcnow().isoformat(),
+            },
         )
 
         logger.info(
@@ -487,7 +456,7 @@ app = FastAPI(
     title="Automation Orchestrator Service",
     description="SOAR functionality for automated security response",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -500,6 +469,7 @@ app.add_middleware(
 
 async def consume_automation_triggers():
     """Consume automation trigger messages from queue."""
+
     async def process_message(message: dict):
         try:
             payload = message["payload"]
@@ -522,9 +492,7 @@ async def consume_automation_triggers():
 
 
 def start_playbook_execution(
-    playbook_id: str,
-    alert_id: str,
-    input_data: Dict[str, Any]
+    playbook_id: str, alert_id: str, input_data: Dict[str, Any]
 ) -> PlaybookExecution:
     """
     Start a new playbook execution.
@@ -543,7 +511,7 @@ def start_playbook_execution(
         trigger_alert_id=alert_id,
         status=WorkflowStatus.PENDING,
         started_at=datetime.utcnow(),
-        results=[]
+        results=[],
     )
 
     # Add input data to execution
@@ -557,6 +525,7 @@ def start_playbook_execution(
 
 # API Endpoints
 
+
 @app.post("/api/v1/playbooks", response_model=Dict[str, Any])
 async def create_playbook(playbook: AutomationPlaybook):
     """Create a new automation playbook."""
@@ -568,18 +537,12 @@ async def create_playbook(playbook: AutomationPlaybook):
         return {
             "success": True,
             "data": playbook.model_dump(),
-            "meta": {
-                "timestamp": datetime.utcnow().isoformat(),
-                "request_id": str(uuid.uuid4())
-            }
+            "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
         }
 
     except Exception as e:
         logger.error(f"Failed to create playbook: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to create playbook: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to create playbook: {str(e)}")
 
 
 @app.get("/api/v1/playbooks", response_model=Dict[str, Any])
@@ -589,12 +552,9 @@ async def list_playbooks():
         "success": True,
         "data": {
             "playbooks": [pb.model_dump() for pb in playbooks.values()],
-            "total": len(playbooks)
+            "total": len(playbooks),
         },
-        "meta": {
-            "timestamp": datetime.utcnow().isoformat(),
-            "request_id": str(uuid.uuid4())
-        }
+        "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
     }
 
 
@@ -603,18 +563,12 @@ async def get_playbook(playbook_id: str):
     """Get a specific playbook."""
     playbook = playbooks.get(playbook_id)
     if not playbook:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Playbook not found: {playbook_id}"
-        )
+        raise HTTPException(status_code=404, detail=f"Playbook not found: {playbook_id}")
 
     return {
         "success": True,
         "data": playbook.model_dump(),
-        "meta": {
-            "timestamp": datetime.utcnow().isoformat(),
-            "request_id": str(uuid.uuid4())
-        }
+        "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
     }
 
 
@@ -623,7 +577,7 @@ async def execute_playbook_api(
     playbook_id: str,
     alert_id: str,
     input_data: Dict[str, Any] = None,
-    background_tasks: BackgroundTasks = None
+    background_tasks: BackgroundTasks = None,
 ):
     """
     Start playbook execution via API.
@@ -636,17 +590,10 @@ async def execute_playbook_api(
     try:
         # Check if playbook exists
         if playbook_id not in playbooks:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Playbook not found: {playbook_id}"
-            )
+            raise HTTPException(status_code=404, detail=f"Playbook not found: {playbook_id}")
 
         # Start execution
-        execution = start_playbook_execution(
-            playbook_id,
-            alert_id,
-            input_data or {}
-        )
+        execution = start_playbook_execution(playbook_id, alert_id, input_data or {})
 
         return {
             "success": True,
@@ -655,28 +602,21 @@ async def execute_playbook_api(
                 "playbook_id": execution.playbook_id,
                 "trigger_alert_id": execution.trigger_alert_id,
                 "status": execution.status.value,
-                "started_at": execution.started_at.isoformat()
+                "started_at": execution.started_at.isoformat(),
             },
-            "meta": {
-                "timestamp": datetime.utcnow().isoformat(),
-                "request_id": str(uuid.uuid4())
-            }
+            "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
         }
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to start playbook execution: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to start playbook execution: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to start playbook execution: {str(e)}")
 
 
 @app.get("/api/v1/executions", response_model=Dict[str, Any])
 async def list_executions(
-    status: Optional[WorkflowStatus] = None,
-    playbook_id: Optional[str] = None
+    status: Optional[WorkflowStatus] = None, playbook_id: Optional[str] = None
 ):
     """List playbook executions."""
     executions = list(active_executions.values())
@@ -689,14 +629,8 @@ async def list_executions(
 
     return {
         "success": True,
-        "data": {
-            "executions": [e.model_dump() for e in executions],
-            "total": len(executions)
-        },
-        "meta": {
-            "timestamp": datetime.utcnow().isoformat(),
-            "request_id": str(uuid.uuid4())
-        }
+        "data": {"executions": [e.model_dump() for e in executions], "total": len(executions)},
+        "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
     }
 
 
@@ -705,39 +639,25 @@ async def get_execution(execution_id: str):
     """Get a specific playbook execution."""
     execution = active_executions.get(execution_id)
     if not execution:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Execution not found: {execution_id}"
-        )
+        raise HTTPException(status_code=404, detail=f"Execution not found: {execution_id}")
 
     return {
         "success": True,
         "data": execution.model_dump(),
-        "meta": {
-            "timestamp": datetime.utcnow().isoformat(),
-            "request_id": str(uuid.uuid4())
-        }
+        "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
     }
 
 
 @app.post("/api/v1/executions/{execution_id}/approve", response_model=Dict[str, Any])
-async def approve_execution(
-    execution_id: str,
-    approver: str,
-    comments: Optional[str] = None
-):
+async def approve_execution(execution_id: str, approver: str, comments: Optional[str] = None):
     """Approve a playbook execution awaiting approval."""
     execution = active_executions.get(execution_id)
     if not execution:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Execution not found: {execution_id}"
-        )
+        raise HTTPException(status_code=404, detail=f"Execution not found: {execution_id}")
 
     if execution.status != WorkflowStatus.PENDING:
         raise HTTPException(
-            status_code=400,
-            detail=f"Execution not in PENDING status: {execution.status.value}"
+            status_code=400, detail=f"Execution not in PENDING status: {execution.status.value}"
         )
 
     execution.approval_status = "approved"
@@ -749,10 +669,7 @@ async def approve_execution(
     return {
         "success": True,
         "message": "Execution approved",
-        "meta": {
-            "timestamp": datetime.utcnow().isoformat(),
-            "request_id": str(uuid.uuid4())
-        }
+        "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
     }
 
 
@@ -761,15 +678,11 @@ async def cancel_execution(execution_id: str):
     """Cancel a running playbook execution."""
     execution = active_executions.get(execution_id)
     if not execution:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Execution not found: {execution_id}"
-        )
+        raise HTTPException(status_code=404, detail=f"Execution not found: {execution_id}")
 
     if execution.status not in [WorkflowStatus.PENDING, WorkflowStatus.RUNNING]:
         raise HTTPException(
-            status_code=400,
-            detail=f"Cannot cancel execution in status: {execution.status.value}"
+            status_code=400, detail=f"Cannot cancel execution in status: {execution.status.value}"
         )
 
     execution.status = WorkflowStatus.CANCELLED
@@ -778,10 +691,7 @@ async def cancel_execution(execution_id: str):
     return {
         "success": True,
         "message": "Execution cancelled",
-        "meta": {
-            "timestamp": datetime.utcnow().isoformat(),
-            "request_id": str(uuid.uuid4())
-        }
+        "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
     }
 
 
@@ -792,11 +702,8 @@ async def health_check():
         "status": "healthy",
         "service": "automation-orchestrator",
         "timestamp": datetime.utcnow().isoformat(),
-        "playbooks": {
-            "total": len(playbooks),
-            "active_executions": len(active_executions)
-        },
-        "executors": list(ACTION_EXECUTORS.keys())
+        "playbooks": {"total": len(playbooks), "active_executions": len(active_executions)},
+        "executors": list(ACTION_EXECUTORS.keys()),
     }
 
 

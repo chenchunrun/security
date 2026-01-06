@@ -55,7 +55,7 @@ metrics_cache: Dict[str, Any] = {
         "by_type": {},
         "triaged": 0,
         "auto_closed": 0,
-        "human_reviewed": 0
+        "human_reviewed": 0,
     },
     "triage": {
         "total_triage_time": 0.0,
@@ -63,21 +63,21 @@ metrics_cache: Dict[str, Any] = {
         "ai_triaged": 0,
         "human_triaged": 0,
         "accurate": 0,
-        "false_positives": 0
+        "false_positives": 0,
     },
     "automation": {
         "playbooks_executed": 0,
         "actions_executed": 0,
         "successful": 0,
-        "total_time": 0.0
-    }
+        "total_time": 0.0,
+    },
 }
 
 # Trend data storage
 trends_cache: Dict[str, List[TrendData]] = {
     "alert_volume": [],
     "triage_accuracy": [],
-    "automation_rate": []
+    "automation_rate": [],
 }
 
 
@@ -118,7 +118,7 @@ app = FastAPI(
     title="Data Analytics Service",
     description="Provides analytics and metrics for security operations",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -131,6 +131,7 @@ app.add_middleware(
 
 async def consume_analytics_events():
     """Consume analytics events from message queue."""
+
     async def process_message(message: dict):
         try:
             event_type = message.get("event_type")
@@ -143,8 +144,9 @@ async def consume_analytics_events():
                     metrics_cache["alerts"]["by_severity"][severity] += 1
 
                 alert_type = payload.get("alert_type", "unknown")
-                metrics_cache["alerts"]["by_type"][alert_type] = \
+                metrics_cache["alerts"]["by_type"][alert_type] = (
                     metrics_cache["alerts"]["by_type"].get(alert_type, 0) + 1
+                )
 
             elif event_type == "alert_triaged":
                 metrics_cache["alerts"]["triaged"] += 1
@@ -188,34 +190,30 @@ async def update_trends_periodically():
             # Alert volume trend
             alert_volume = metrics_cache["alerts"]["total"]
             trends_cache["alert_volume"].append(
-                TrendData(
-                    timestamp=now,
-                    value=alert_volume,
-                    label=now.strftime("%H:%M")
-                )
+                TrendData(timestamp=now, value=alert_volume, label=now.strftime("%H:%M"))
             )
 
             # Keep only last 24 hours of data
             cutoff = now - timedelta(hours=24)
             trends_cache["alert_volume"] = [
-                t for t in trends_cache["alert_volume"]
-                if t.timestamp > cutoff
+                t for t in trends_cache["alert_volume"] if t.timestamp > cutoff
             ]
 
             # Triage accuracy trend
             if metrics_cache["triage"]["triage_count"] > 0:
-                accuracy = metrics_cache["triage"]["accurate"] / metrics_cache["triage"]["triage_count"]
+                accuracy = (
+                    metrics_cache["triage"]["accurate"] / metrics_cache["triage"]["triage_count"]
+                )
                 trends_cache["triage_accuracy"].append(
                     TrendData(
                         timestamp=now,
                         value=accuracy * 100,  # Convert to percentage
-                        label=now.strftime("%H:%M")
+                        label=now.strftime("%H:%M"),
                     )
                 )
 
                 trends_cache["triage_accuracy"] = [
-                    t for t in trends_cache["triage_accuracy"]
-                    if t.timestamp > cutoff
+                    t for t in trends_cache["triage_accuracy"] if t.timestamp > cutoff
                 ]
 
             logger.debug("Trends updated successfully")
@@ -244,6 +242,7 @@ def calculate_time_range(time_range: TimeRange) -> tuple[datetime, datetime]:
 
 # API Endpoints
 
+
 @app.get("/api/v1/dashboard", response_model=Dict[str, Any])
 async def get_dashboard():
     """Get complete dashboard data."""
@@ -254,8 +253,9 @@ async def get_dashboard():
             by_severity=metrics_cache["alerts"]["by_severity"].copy(),
             by_type=metrics_cache["alerts"]["by_type"].copy(),
             triaged=metrics_cache["alerts"]["triaged"],
-            auto_closed=metrics_cache["alerts"]["triaged"] - metrics_cache["alerts"]["human_reviewed"],
-            human_reviewed=metrics_cache["triage"]["human_triaged"]
+            auto_closed=metrics_cache["alerts"]["triaged"]
+            - metrics_cache["alerts"]["human_reviewed"],
+            human_reviewed=metrics_cache["triage"]["human_triaged"],
         )
 
         # Calculate triage metrics
@@ -272,7 +272,7 @@ async def get_dashboard():
             triaged_by_ai=metrics_cache["triage"]["ai_triaged"],
             triaged_by_human=metrics_cache["triage"]["human_triaged"],
             accuracy_score=accuracy,
-            false_positive_rate=metrics_cache["triage"]["false_positives"] / max(triage_count, 1)
+            false_positive_rate=metrics_cache["triage"]["false_positives"] / max(triage_count, 1),
         )
 
         # Calculate automation metrics
@@ -289,14 +289,15 @@ async def get_dashboard():
             actions_executed=metrics_cache["automation"]["actions_executed"],
             success_rate=success_rate,
             avg_execution_time_seconds=avg_execution_time,
-            time_saved_hours=metrics_cache["automation"]["actions_executed"] * 0.5  # Estimate: 30 min per action
+            time_saved_hours=metrics_cache["automation"]["actions_executed"]
+            * 0.5,  # Estimate: 30 min per action
         )
 
         # Get trends
         trends = {
             "alert_volume": trends_cache["alert_volume"][-24:],  # Last 24 data points
             "triage_accuracy": trends_cache["triage_accuracy"][-24:],
-            "automation_rate": trends_cache["automation_rate"][-24:]
+            "automation_rate": trends_cache["automation_rate"][-24:],
         }
 
         dashboard = DashboardData(
@@ -304,30 +305,22 @@ async def get_dashboard():
             triage_metrics=triage_metrics,
             automation_metrics=automation_metrics,
             trends=trends,
-            top_alerts=[]  # TODO: Implement top alerts query
+            top_alerts=[],  # TODO: Implement top alerts query
         )
 
         return {
             "success": True,
             "data": dashboard.model_dump(),
-            "meta": {
-                "timestamp": datetime.utcnow().isoformat(),
-                "request_id": str(uuid.uuid4())
-            }
+            "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
         }
 
     except Exception as e:
         logger.error(f"Failed to generate dashboard: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to generate dashboard: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to generate dashboard: {str(e)}")
 
 
 @app.get("/api/v1/metrics/alerts", response_model=Dict[str, Any])
-async def get_alert_metrics(
-    time_range: TimeRange = Query(TimeRange.LAST_24H)
-):
+async def get_alert_metrics(time_range: TimeRange = Query(TimeRange.LAST_24H)):
     """Get alert metrics."""
     try:
         start_date, end_date = calculate_time_range(time_range)
@@ -339,8 +332,9 @@ async def get_alert_metrics(
             by_severity=metrics_cache["alerts"]["by_severity"].copy(),
             by_type=metrics_cache["alerts"]["by_type"].copy(),
             triaged=metrics_cache["alerts"]["triaged"],
-            auto_closed=metrics_cache["alerts"]["triaged"] - metrics_cache["triage"]["human_triaged"],
-            human_reviewed=metrics_cache["triage"]["human_triaged"]
+            auto_closed=metrics_cache["alerts"]["triaged"]
+            - metrics_cache["triage"]["human_triaged"],
+            human_reviewed=metrics_cache["triage"]["human_triaged"],
         )
 
         return {
@@ -349,25 +343,17 @@ async def get_alert_metrics(
             "meta": {
                 "timestamp": datetime.utcnow().isoformat(),
                 "request_id": str(uuid.uuid4()),
-                "time_range": {
-                    "start": start_date.isoformat(),
-                    "end": end_date.isoformat()
-                }
-            }
+                "time_range": {"start": start_date.isoformat(), "end": end_date.isoformat()},
+            },
         }
 
     except Exception as e:
         logger.error(f"Failed to get alert metrics: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get alert metrics: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to get alert metrics: {str(e)}")
 
 
 @app.get("/api/v1/metrics/triage", response_model=Dict[str, Any])
-async def get_triage_metrics(
-    time_range: TimeRange = Query(TimeRange.LAST_24H)
-):
+async def get_triage_metrics(time_range: TimeRange = Query(TimeRange.LAST_24H)):
     """Get triage performance metrics."""
     try:
         start_date, end_date = calculate_time_range(time_range)
@@ -385,7 +371,7 @@ async def get_triage_metrics(
             triaged_by_ai=metrics_cache["triage"]["ai_triaged"],
             triaged_by_human=metrics_cache["triage"]["human_triaged"],
             accuracy_score=accuracy,
-            false_positive_rate=metrics_cache["triage"]["false_positives"] / max(triage_count, 1)
+            false_positive_rate=metrics_cache["triage"]["false_positives"] / max(triage_count, 1),
         )
 
         return {
@@ -394,25 +380,17 @@ async def get_triage_metrics(
             "meta": {
                 "timestamp": datetime.utcnow().isoformat(),
                 "request_id": str(uuid.uuid4()),
-                "time_range": {
-                    "start": start_date.isoformat(),
-                    "end": end_date.isoformat()
-                }
-            }
+                "time_range": {"start": start_date.isoformat(), "end": end_date.isoformat()},
+            },
         }
 
     except Exception as e:
         logger.error(f"Failed to get triage metrics: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get triage metrics: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to get triage metrics: {str(e)}")
 
 
 @app.get("/api/v1/metrics/automation", response_model=Dict[str, Any])
-async def get_automation_metrics(
-    time_range: TimeRange = Query(TimeRange.LAST_24H)
-):
+async def get_automation_metrics(time_range: TimeRange = Query(TimeRange.LAST_24H)):
     """Get automation metrics."""
     try:
         start_date, end_date = calculate_time_range(time_range)
@@ -430,7 +408,7 @@ async def get_automation_metrics(
             actions_executed=metrics_cache["automation"]["actions_executed"],
             success_rate=success_rate,
             avg_execution_time_seconds=avg_time,
-            time_saved_hours=metrics_cache["automation"]["actions_executed"] * 0.5
+            time_saved_hours=metrics_cache["automation"]["actions_executed"] * 0.5,
         )
 
         return {
@@ -439,56 +417,38 @@ async def get_automation_metrics(
             "meta": {
                 "timestamp": datetime.utcnow().isoformat(),
                 "request_id": str(uuid.uuid4()),
-                "time_range": {
-                    "start": start_date.isoformat(),
-                    "end": end_date.isoformat()
-                }
-            }
+                "time_range": {"start": start_date.isoformat(), "end": end_date.isoformat()},
+            },
         }
 
     except Exception as e:
         logger.error(f"Failed to get automation metrics: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get automation metrics: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to get automation metrics: {str(e)}")
 
 
 @app.get("/api/v1/trends/{metric_type}", response_model=Dict[str, Any])
-async def get_trends(
-    metric_type: str,
-    time_range: TimeRange = Query(TimeRange.LAST_24H)
-):
+async def get_trends(metric_type: str, time_range: TimeRange = Query(TimeRange.LAST_24H)):
     """Get trend data for a specific metric."""
     try:
         start_date, end_date = calculate_time_range(time_range)
 
         # Filter trends by time range
         trends = trends_cache.get(metric_type, [])
-        filtered_trends = [
-            t for t in trends
-            if start_date <= t.timestamp <= end_date
-        ]
+        filtered_trends = [t for t in trends if start_date <= t.timestamp <= end_date]
 
         return {
             "success": True,
             "data": {
                 "metric_type": metric_type,
                 "time_range": time_range.value,
-                "trends": [t.model_dump() for t in filtered_trends]
+                "trends": [t.model_dump() for t in filtered_trends],
             },
-            "meta": {
-                "timestamp": datetime.utcnow().isoformat(),
-                "request_id": str(uuid.uuid4())
-            }
+            "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
         }
 
     except Exception as e:
         logger.error(f"Failed to get trends: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get trends: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to get trends: {str(e)}")
 
 
 @app.get("/health")
@@ -500,8 +460,8 @@ async def health_check():
         "timestamp": datetime.utcnow().isoformat(),
         "metrics": {
             "total_alerts": metrics_cache["alerts"]["total"],
-            "trend_series": len(trends_cache)
-        }
+            "trend_series": len(trends_cache),
+        },
     }
 
 

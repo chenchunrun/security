@@ -84,7 +84,6 @@ Consider:
 - Network context (internal/external)
 - User context and privileges
 - Historical patterns""",
-
     "phishing": """You are an expert security analyst specializing in phishing and social engineering attacks.
 Your task is to analyze security alerts related to phishing and provide a comprehensive assessment.
 
@@ -109,7 +108,6 @@ Consider:
 - Attachment analysis
 - User context and awareness level
 - Threat intelligence feeds""",
-
     "brute_force": """You are an expert security analyst specializing in authentication and access attacks.
 Your task is to analyze security alerts related to brute force attacks and provide a comprehensive assessment.
 
@@ -134,7 +132,6 @@ Consider:
 - Target user privileges
 - Successful vs failed attempts
 - Authentication methods""",
-
     "data_exfiltration": """You are an expert security analyst specializing in data breach and exfiltration attacks.
 Your task is to analyze security alerts related to data exfiltration and provide a comprehensive assessment.
 
@@ -159,7 +156,6 @@ Consider:
 - Data sensitivity
 - Asset criticality
 - Encryption status""",
-
     "intrusion": """You are an expert security analyst specializing in network intrusions and advanced persistent threats.
 Your task is to analyze security alerts related to network intrusions and provide a comprehensive assessment.
 
@@ -185,7 +181,6 @@ Consider:
 - Network topology
 - Asset criticality
 - Lateral movement potential""",
-
     "ddos": """You are an expert security analyst specializing in DDoS attacks and network availability threats.
 Your task is to analyze security alerts related to DDoS attacks and provide a comprehensive assessment.
 
@@ -209,7 +204,6 @@ Consider:
 - Target resources
 - Service availability impact
 - Mitigation options""",
-
     "default": """You are an expert security analyst.
 Your task is to analyze this security alert and provide a comprehensive assessment.
 
@@ -226,13 +220,14 @@ You must respond in the following JSON format:
   "estimated_impact": "Description of potential impact"
 }
 
-Consider all available context including threat intelligence, network information, and asset details."""
+Consider all available context including threat intelligence, network information, and asset details.""",
 }
 
 
 # =============================================================================
 # Prompt Engineering
 # =============================================================================
+
 
 def build_triage_prompt(
     alert: SecurityAlert,
@@ -303,8 +298,12 @@ def build_triage_prompt(
             prompt_parts.append(f"## User Context")
             prompt_parts.append(f"- **Username**: {user_ctx.get('username', 'Unknown')}")
             prompt_parts.append(f"- **Department**: {user_ctx.get('department', 'Unknown')}")
-            prompt_parts.append(f"- **Privilege Level**: {user_ctx.get('privilege_level', 'Unknown')}")
-            prompt_parts.append(f"- **Account Status**: {user_ctx.get('account_status', 'Unknown')}")
+            prompt_parts.append(
+                f"- **Privilege Level**: {user_ctx.get('privilege_level', 'Unknown')}"
+            )
+            prompt_parts.append(
+                f"- **Account Status**: {user_ctx.get('account_status', 'Unknown')}"
+            )
 
         # Threat intelligence
         if "threat_intel" in enrichment:
@@ -315,14 +314,18 @@ def build_triage_prompt(
             # Source IP threat intel
             if "source_ip" in ti:
                 source_ti = ti["source_ip"]
-                prompt_parts.append(f"- **Source IP Threat Score**: {source_ti.get('threat_score', 'N/A')}")
+                prompt_parts.append(
+                    f"- **Source IP Threat Score**: {source_ti.get('threat_score', 'N/A')}"
+                )
                 if source_ti.get("sources_found", 0) > 0:
                     prompt_parts.append(f"- **Detected by {source_ti['sources_found']} sources**")
 
             # File hash threat intel
             if "file_hash" in ti:
                 hash_ti = ti["file_hash"]
-                prompt_parts.append(f"- **File Hash Threat Score**: {hash_ti.get('threat_score', 'N/A')}")
+                prompt_parts.append(
+                    f"- **File Hash Threat Score**: {hash_ti.get('threat_score', 'N/A')}"
+                )
                 if hash_ti.get("sources_found", 0) > 0:
                     prompt_parts.append(f"- **Detected by {hash_ti['sources_found']} sources**")
 
@@ -334,7 +337,9 @@ def build_triage_prompt(
                     prompt_parts.append(f"- **Detected by {url_ti['sources_found']} sources**")
 
     prompt_parts.append(f"")
-    prompt_parts.append(f"Please analyze this alert and provide your assessment in the required JSON format.")
+    prompt_parts.append(
+        f"Please analyze this alert and provide your assessment in the required JSON format."
+    )
 
     return "\n".join(prompt_parts)
 
@@ -349,15 +354,13 @@ def get_system_prompt(alert_type: str) -> str:
     Returns:
         System prompt string
     """
-    return TRIAGE_SYSTEM_PROMPTS.get(
-        alert_type,
-        TRIAGE_SYSTEM_PROMPTS["default"]
-    )
+    return TRIAGE_SYSTEM_PROMPTS.get(alert_type, TRIAGE_SYSTEM_PROMPTS["default"])
 
 
 # =============================================================================
 # LLM API Integration
 # =============================================================================
+
 
 async def call_llm_api(
     prompt: str,
@@ -414,7 +417,9 @@ async def call_llm_api(
                     return data
                 else:
                     error_text = await response.text()
-                    logger.error(f"LLM API error (attempt {attempt + 1}): {response.status_code} - {error_text}")
+                    logger.error(
+                        f"LLM API error (attempt {attempt + 1}): {response.status_code} - {error_text}"
+                    )
 
                     # Don't retry on client errors (4xx)
                     if 400 <= response.status_code < 500:
@@ -427,7 +432,7 @@ async def call_llm_api(
 
         # Exponential backoff
         if attempt < max_retries - 1:
-            delay = base_delay * (2 ** attempt)
+            delay = base_delay * (2**attempt)
             logger.info(f"Retrying in {delay} seconds...")
             await asyncio.sleep(delay)
 
@@ -472,7 +477,7 @@ async def parse_llm_response(llm_response: Dict[str, Any]) -> Dict[str, Any]:
                             {
                                 "action": "Manual review required",
                                 "priority": "high",
-                                "type": "investigation"
+                                "type": "investigation",
                             }
                         ]
 
@@ -489,12 +494,12 @@ async def parse_llm_response(llm_response: Dict[str, Any]) -> Dict[str, Any]:
                     {
                         "action": "Manual review required - LLM response parsing failed",
                         "priority": "high",
-                        "type": "investigation"
+                        "type": "investigation",
                     }
                 ],
                 "requires_human_review": True,
                 "estimated_impact": "Unknown - requires manual assessment",
-                "parsing_error": True
+                "parsing_error": True,
             }
 
     except Exception as e:
@@ -508,12 +513,12 @@ async def parse_llm_response(llm_response: Dict[str, Any]) -> Dict[str, Any]:
                 {
                     "action": "Manual review required - parsing error",
                     "priority": "critical",
-                    "type": "investigation"
+                    "type": "investigation",
                 }
             ],
             "requires_human_review": True,
             "estimated_impact": "Unknown",
-            "parsing_error": True
+            "parsing_error": True,
         }
 
 
@@ -566,6 +571,7 @@ async def get_llm_route_from_router(task_type: str, complexity: str) -> Dict[str
 # Alert Triage
 # =============================================================================
 
+
 async def triage_alert(
     alert: SecurityAlert,
     enrichment: Dict[str, Any] = None,
@@ -613,7 +619,7 @@ async def triage_alert(
                 "alert_type": alert.alert_type,
                 "complexity": complexity,
                 "model": route_decision.get("model", "unknown"),
-            }
+            },
         )
 
         # Call LLM API
@@ -632,14 +638,16 @@ async def triage_alert(
         end_time = datetime.utcnow()
         processing_time = (end_time - start_time).total_seconds()
 
-        triage_result.update({
-            "alert_id": alert.alert_id,
-            "triaged_at": end_time.isoformat(),
-            "processing_time_seconds": processing_time,
-            "model_used": route_decision.get("model", "unknown"),
-            "provider_used": route_decision.get("provider", "unknown"),
-            "complexity_assessed": complexity,
-        })
+        triage_result.update(
+            {
+                "alert_id": alert.alert_id,
+                "triaged_at": end_time.isoformat(),
+                "processing_time_seconds": processing_time,
+                "model_used": route_decision.get("model", "unknown"),
+                "provider_used": route_decision.get("provider", "unknown"),
+                "complexity_assessed": complexity,
+            }
+        )
 
         logger.info(
             f"Alert triaged successfully: {alert.alert_id}",
@@ -648,7 +656,7 @@ async def triage_alert(
                 "risk_level": triage_result.get("risk_level"),
                 "confidence": triage_result.get("confidence"),
                 "processing_time": processing_time,
-            }
+            },
         )
 
         return triage_result
@@ -667,7 +675,7 @@ async def triage_alert(
                 {
                     "action": "Manual triage required - processing error",
                     "priority": "high",
-                    "type": "investigation"
+                    "type": "investigation",
                 }
             ],
             "requires_human_review": True,
@@ -680,6 +688,7 @@ async def triage_alert(
 # =============================================================================
 # FastAPI Application
 # =============================================================================
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -759,8 +768,10 @@ app.add_middleware(
 # Background Task: Message Consumer
 # =============================================================================
 
+
 async def consume_alerts():
     """Consume enriched alerts and perform AI triage."""
+
     async def process_message(message: dict):
         try:
             payload = message.get("payload", {})
@@ -820,6 +831,7 @@ async def consume_alerts():
 # =============================================================================
 # API Endpoints
 # =============================================================================
+
 
 @app.get("/health", tags=["Health"])
 async def health_check():

@@ -39,16 +39,15 @@ class SuccessResponse(BaseModel, Generic[T]):
     data: T = Field(..., description="Response payload")
     meta: "ResponseMeta" = Field(..., description="Response metadata")
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "success": True,
                 "data": {"id": "abc-123"},
-                "meta": {
-                    "timestamp": "2025-01-05T12:00:00Z",
-                    "request_id": "req-abc-123"
-                }
+                "meta": {"timestamp": "2025-01-05T12:00:00Z", "request_id": "req-abc-123"},
             }
-    })
+        }
+    )
 
 
 class ErrorResponse(BaseModel):
@@ -65,20 +64,19 @@ class ErrorResponse(BaseModel):
     error: "ErrorDetail" = Field(..., description="Error details")
     meta: "ResponseMeta" = Field(..., description="Response metadata")
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "success": False,
                 "error": {
                     "code": "VALIDATION_ERROR",
                     "message": "Validation failed",
-                    "details": {"field": "alert_id", "reason": "Field is required"}
+                    "details": {"field": "alert_id", "reason": "Field is required"},
                 },
-                "meta": {
-                    "timestamp": "2025-01-05T12:00:00Z",
-                    "request_id": "req-abc-123"
-                }
+                "meta": {"timestamp": "2025-01-05T12:00:00Z", "request_id": "req-abc-123"},
             }
-    })
+        }
+    )
 
 
 class ErrorDetail(BaseModel):
@@ -86,17 +84,17 @@ class ErrorDetail(BaseModel):
 
     code: str = Field(..., description="Error code")
     message: str = Field(..., description="Human-readable error message")
-    details: Optional[dict[str, Any]] = Field(
-        default=None, description="Additional error details"
-    )
+    details: Optional[dict[str, Any]] = Field(default=None, description="Additional error details")
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "code": "VALIDATION_ERROR",
                 "message": "Validation failed",
-                "details": {"field": "alert_id"}
+                "details": {"field": "alert_id"},
             }
-    })
+        }
+    )
 
 
 class ResponseMeta(BaseModel):
@@ -110,21 +108,20 @@ class ResponseMeta(BaseModel):
     """
 
     timestamp: datetime = Field(
-        default_factory=datetime.utcnow,
-        description="Response timestamp in ISO 8601 format"
+        default_factory=datetime.utcnow, description="Response timestamp in ISO 8601 format"
     )
     request_id: str = Field(..., description="Unique request identifier")
-    version: Optional[str] = Field(
-        default=None, description="API version"
-    )
+    version: Optional[str] = Field(default=None, description="API version")
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "timestamp": "2025-01-05T12:00:00Z",
                 "request_id": "req-abc-123",
-                "version": "1.0.0"
+                "version": "1.0.0",
             }
-    })
+        }
+    )
 
 
 class PaginatedResponse(BaseModel, Generic[T]):
@@ -141,21 +138,15 @@ class PaginatedResponse(BaseModel, Generic[T]):
 
     total: int = Field(..., ge=0, description="Total number of items")
     page: int = Field(..., ge=1, description="Current page number (1-indexed)")
-    page_size: int = Field(
-        ..., ge=1, le=100, description="Number of items per page"
-    )
+    page_size: int = Field(..., ge=1, le=100, description="Number of items per page")
     total_pages: int = Field(..., ge=0, description="Total number of pages")
     items: list[T] = Field(..., description="List of items for current page")
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
-                "total": 1000,
-                "page": 1,
-                "page_size": 20,
-                "total_pages": 50,
-                "items": []
-            }
-    })
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {"total": 1000, "page": 1, "page_size": 20, "total_pages": 50, "items": []}
+        }
+    )
 
 
 class HealthStatus(BaseModel):
@@ -176,14 +167,16 @@ class HealthStatus(BaseModel):
         default_factory=dict, description="Individual service checks"
     )
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "status": "healthy",
                 "timestamp": "2025-01-05T12:00:00Z",
                 "checks": {
                     "database": {"status": "healthy"},
                     "redis": {"status": "healthy"},
-                    "rabbitmq": {"status": "healthy"}
-                }
+                    "rabbitmq": {"status": "healthy"},
+                },
             }
-    })
+        }
+    )

@@ -67,7 +67,7 @@ class TestAlertProcessingPipeline:
             "severity": "high",
             "description": "Integration test alert",
             "source_ip": "45.33.32.156",
-            "target_ip": "10.0.0.50"
+            "target_ip": "10.0.0.50",
         }
 
     async def test_end_to_end_alert_processing(self, setup_services, sample_alert):
@@ -85,6 +85,7 @@ class TestAlertProcessingPipeline:
 
         # Step 1: Ingest alert
         from shared.models import SecurityAlert
+
         alert = SecurityAlert(**sample_alert)
 
         assert alert.alert_id == "ALT-INT-001"
@@ -98,7 +99,7 @@ class TestAlertProcessingPipeline:
             "source_network": {
                 "ip_address": alert.source_ip,
                 "is_internal": False,
-                "reputation_score": 10.0
+                "reputation_score": 10.0,
             }
         }
 
@@ -109,7 +110,7 @@ class TestAlertProcessingPipeline:
             "alert_id": alert.alert_id,
             "risk_level": "high",
             "confidence": 85.0,
-            "triaged_by": "ai-agent"
+            "triaged_by": "ai-agent",
         }
 
         assert triage_result["alert_id"] == "ALT-INT-001"
@@ -131,7 +132,7 @@ class TestWorkflowIntegration:
             WorkflowExecution,
             WorkflowStatus,
             AutomationPlaybook,
-            PlaybookExecution
+            PlaybookExecution,
         )
 
         # Create workflow execution
@@ -140,7 +141,7 @@ class TestWorkflowIntegration:
             workflow_id="alert-processing",
             status=WorkflowStatus.RUNNING,
             input={"alert_id": "ALT-001"},
-            started_at=datetime.utcnow()
+            started_at=datetime.utcnow(),
         )
 
         assert execution.status == WorkflowStatus.RUNNING
@@ -151,7 +152,7 @@ class TestWorkflowIntegration:
             playbook_id="malware-response",
             trigger_alert_id="ALT-001",
             status=WorkflowStatus.RUNNING,
-            started_at=datetime.utcnow()
+            started_at=datetime.utcnow(),
         )
 
         assert playbook_exec.playbook_id == "malware-response"
@@ -168,12 +169,7 @@ class TestMessageQueueIntegration:
         # Expected queue flow:
         # alert.raw → alert.normalized → alert.enriched → alert.result
 
-        queue_flow = [
-            "alert.raw",
-            "alert.normalized",
-            "alert.enriched",
-            "alert.result"
-        ]
+        queue_flow = ["alert.raw", "alert.normalized", "alert.enriched", "alert.result"]
 
         # Verify queue names are defined
         from shared.messaging import QUEUE_DEFINITIONS
@@ -196,9 +192,9 @@ class TestDatabaseIntegration:
         from shared.database.base import DatabaseManager
 
         # Verify DatabaseManager has required methods
-        assert hasattr(DatabaseManager, 'initialize')
-        assert hasattr(DatabaseManager, 'get_session')
-        assert hasattr(DatabaseManager, 'close')
+        assert hasattr(DatabaseManager, "initialize")
+        assert hasattr(DatabaseManager, "get_session")
+        assert hasattr(DatabaseManager, "close")
 
 
 if __name__ == "__main__":

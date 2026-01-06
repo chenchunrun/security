@@ -130,83 +130,58 @@ class SecurityAlert(BaseModel):
         min_length=1,
         max_length=100,
         description="Unique alert identifier",
-        examples=["ALT-2025-001"]
+        examples=["ALT-2025-001"],
     )
     timestamp: datetime = Field(
-        ...,
-        description="Alert generation timestamp",
-        examples=["2025-01-05T12:00:00Z"]
+        ..., description="Alert generation timestamp", examples=["2025-01-05T12:00:00Z"]
     )
-    alert_type: AlertType = Field(
-        ...,
-        description="Type of security alert"
-    )
-    severity: Severity = Field(
-        ...,
-        description="Alert severity level"
-    )
+    alert_type: AlertType = Field(..., description="Type of security alert")
+    severity: Severity = Field(..., description="Alert severity level")
     description: str = Field(
-        ...,
-        min_length=1,
-        max_length=2000,
-        description="Human-readable alert description"
+        ..., min_length=1, max_length=2000, description="Human-readable alert description"
     )
 
     # Network information (optional)
     source_ip: Optional[str] = Field(
-        default=None,
-        description="Source IP address",
-        examples=["45.33.32.156"]
+        default=None, description="Source IP address", examples=["45.33.32.156"]
     )
     target_ip: Optional[str] = Field(
-        default=None,
-        description="Target IP address",
-        examples=["10.0.0.50"]
+        default=None, description="Target IP address", examples=["10.0.0.50"]
     )
 
     # Entity references (optional)
     asset_id: Optional[str] = Field(
-        default=None,
-        description="Target asset identifier",
-        examples=["ASSET-001"]
+        default=None, description="Target asset identifier", examples=["ASSET-001"]
     )
     user_id: Optional[str] = Field(
-        default=None,
-        description="Associated user identifier",
-        examples=["user@example.com"]
+        default=None, description="Associated user identifier", examples=["user@example.com"]
     )
 
     # Threat-specific fields (optional)
     file_hash: Optional[str] = Field(
         default=None,
         description="Associated file hash (MD5, SHA1, SHA256)",
-        examples=["5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"]
+        examples=["5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"],
     )
     url: Optional[str] = Field(
         default=None,
         description="Associated URL (for phishing, etc.)",
-        examples=["http://malicious.example.com"]
+        examples=["http://malicious.example.com"],
     )
 
     # Metadata
     raw_data: Optional[dict[str, Any]] = Field(
-        default=None,
-        description="Original raw alert data from source"
+        default=None, description="Original raw alert data from source"
     )
     normalized_data: Optional[dict[str, Any]] = Field(
-        default=None,
-        description="Normalized alert data after processing"
+        default=None, description="Normalized alert data after processing"
     )
 
     # Source tracking
     source: Optional[str] = Field(
-        default=None,
-        description="Alert source system (e.g., 'splunk', 'qradar')"
+        default=None, description="Alert source system (e.g., 'splunk', 'qradar')"
     )
-    source_ref: Optional[str] = Field(
-        default=None,
-        description="Alert reference in source system"
-    )
+    source_ref: Optional[str] = Field(default=None, description="Alert reference in source system")
 
     @field_validator("source_ip", "target_ip")
     @classmethod
@@ -216,9 +191,9 @@ class SecurityAlert(BaseModel):
             return v
 
         # IPv4 pattern
-        ipv4_pattern = r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
+        ipv4_pattern = r"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
         # IPv6 pattern (simplified)
-        ipv6_pattern = r'^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$'
+        ipv6_pattern = r"^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$"
 
         if not (re.match(ipv4_pattern, v) or re.match(ipv6_pattern, v)):
             raise ValueError(f"Invalid IP address format: {v}")
@@ -236,15 +211,15 @@ class SecurityAlert(BaseModel):
 
         # MD5: 32 hex chars
         if len(v) == 32:
-            if not re.match(r'^[0-9a-f]{32}$', v):
+            if not re.match(r"^[0-9a-f]{32}$", v):
                 raise ValueError(f"Invalid MD5 hash format: {v}")
         # SHA1: 40 hex chars
         elif len(v) == 40:
-            if not re.match(r'^[0-9a-f]{40}$', v):
+            if not re.match(r"^[0-9a-f]{40}$", v):
                 raise ValueError(f"Invalid SHA1 hash format: {v}")
         # SHA256: 64 hex chars
         elif len(v) == 64:
-            if not re.match(r'^[0-9a-f]{64}$', v):
+            if not re.match(r"^[0-9a-f]{64}$", v):
                 raise ValueError(f"Invalid SHA256 hash format: {v}")
         else:
             raise ValueError(f"Invalid file hash length: {len(v)}")
@@ -260,8 +235,9 @@ class SecurityAlert(BaseModel):
             raise ValueError("Timestamp cannot be in the future")
         return v
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "alert_id": "ALT-2025-001",
                 "timestamp": "2025-01-05T12:00:00Z",
                 "alert_type": "malware",
@@ -272,9 +248,10 @@ class SecurityAlert(BaseModel):
                 "file_hash": "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
                 "asset_id": "ASSET-001",
                 "source": "splunk",
-                "source_ref": "SPL-12345"
+                "source_ref": "SPL-12345",
             }
-    })
+        }
+    )
 
 
 class AlertUpdate(BaseModel):
@@ -289,13 +266,15 @@ class AlertUpdate(BaseModel):
     assigned_to: Optional[str] = None
     comment: Optional[str] = None
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "status": "in_progress",
                 "assigned_to": "analyst@example.com",
-                "comment": "Investigating the alert"
+                "comment": "Investigating the alert",
             }
-    })
+        }
+    )
 
 
 class AlertBatch(BaseModel):
@@ -310,13 +289,11 @@ class AlertBatch(BaseModel):
     alerts: list[SecurityAlert] = Field(
         ..., min_length=1, max_length=100, description="List of alerts (max 100 per batch)"
     )
-    batch_id: Optional[str] = Field(
-        default=None,
-        description="Unique batch identifier"
-    )
+    batch_id: Optional[str] = Field(default=None, description="Unique batch identifier")
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "batch_id": "BATCH-2025-001",
                 "alerts": [
                     {
@@ -324,18 +301,19 @@ class AlertBatch(BaseModel):
                         "timestamp": "2025-01-05T12:00:00Z",
                         "alert_type": "malware",
                         "severity": "high",
-                        "description": "Malware detected"
+                        "description": "Malware detected",
                     },
                     {
                         "alert_id": "ALT-002",
                         "timestamp": "2025-01-05T12:01:00Z",
                         "alert_type": "brute_force",
                         "severity": "medium",
-                        "description": "Brute force attempt detected"
-                    }
-                ]
+                        "description": "Brute force attempt detected",
+                    },
+                ],
             }
-    })
+        }
+    )
 
 
 class AlertFilter(BaseModel):
@@ -359,20 +337,18 @@ class AlertFilter(BaseModel):
     start_date: Optional[datetime] = Field(
         default=None, description="Filter alerts after this date"
     )
-    end_date: Optional[datetime] = Field(
-        default=None, description="Filter alerts before this date"
-    )
+    end_date: Optional[datetime] = Field(default=None, description="Filter alerts before this date")
 
     # Text search
-    search: Optional[str] = Field(
-        default=None, description="Search in description field"
-    )
+    search: Optional[str] = Field(default=None, description="Search in description field")
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "severity": "high",
                 "status": "new",
                 "start_date": "2025-01-01T00:00:00Z",
-                "end_date": "2025-01-05T23:59:59Z"
+                "end_date": "2025-01-05T23:59:59Z",
             }
-    })
+        }
+    )

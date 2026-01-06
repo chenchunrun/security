@@ -25,10 +25,7 @@ from unittest.mock import Mock, AsyncMock
 
 
 def create_mock_alert(
-    alert_id: str = "test-alert-001",
-    alert_type: str = "malware",
-    severity: str = "high",
-    **kwargs
+    alert_id: str = "test-alert-001", alert_type: str = "malware", severity: str = "high", **kwargs
 ) -> Dict[str, Any]:
     """Create a mock alert for testing."""
     return {
@@ -50,10 +47,7 @@ def create_mock_alert(
 
 
 def create_mock_triage_result(
-    alert_id: str = "test-alert-001",
-    risk_level: str = "high",
-    confidence: int = 85,
-    **kwargs
+    alert_id: str = "test-alert-001", risk_level: str = "high", confidence: int = 85, **kwargs
 ) -> Dict[str, Any]:
     """Create a mock triage result for testing."""
     return {
@@ -61,23 +55,17 @@ def create_mock_triage_result(
         "risk_level": risk_level,
         "confidence": confidence,
         "reasoning": kwargs.get("reasoning", "Test reasoning"),
-        "recommended_actions": kwargs.get("recommended_actions", [
-            {"action": "Test action", "priority": "high", "timeline": "Immediate"}
-        ]),
-        "iocs": kwargs.get("iocs", {
-            "file_hashes": [],
-            "ips": [],
-            "domains": []
-        }),
+        "recommended_actions": kwargs.get(
+            "recommended_actions",
+            [{"action": "Test action", "priority": "high", "timeline": "Immediate"}],
+        ),
+        "iocs": kwargs.get("iocs", {"file_hashes": [], "ips": [], "domains": []}),
         "references": kwargs.get("references", []),
-        "created_at": datetime.utcnow().isoformat()
+        "created_at": datetime.utcnow().isoformat(),
     }
 
 
-def create_mock_enrichment(
-    alert_id: str = "test-alert-001",
-    **kwargs
-) -> Dict[str, Any]:
+def create_mock_enrichment(alert_id: str = "test-alert-001", **kwargs) -> Dict[str, Any]:
     """Create a mock enrichment for testing."""
     return {
         "alert_id": alert_id,
@@ -87,27 +75,20 @@ def create_mock_enrichment(
             "ip_address": kwargs.get("source_ip", "192.168.1.100"),
             "is_internal": True,
             "subnet": "192.168.1.0/24",
-            "country": "Internal"
+            "country": "Internal",
         },
         "threat_intel": {
             "threat_score": kwargs.get("threat_score", 75),
             "sources_queried": 2,
             "sources_found": 1,
-            "indicators": {}
+            "indicators": {},
         },
-        "asset": {
-            "asset_id": kwargs.get("asset_id", "SERVER-001"),
-            "criticality": "high"
-        }
+        "asset": {"asset_id": kwargs.get("asset_id", "SERVER-001"), "criticality": "high"},
     }
 
 
 async def wait_for_condition(
-    condition: callable,
-    timeout: float = 5.0,
-    interval: float = 0.1,
-    *args,
-    **kwargs
+    condition: callable, timeout: float = 5.0, interval: float = 0.1, *args, **kwargs
 ) -> bool:
     """
     Wait for a condition to become true.
@@ -132,9 +113,7 @@ async def wait_for_condition(
 
 def assert_valid_alert(alert: Dict[str, Any]) -> None:
     """Assert that alert has required fields."""
-    required_fields = [
-        "alert_id", "alert_type", "severity", "title", "description", "timestamp"
-    ]
+    required_fields = ["alert_id", "alert_type", "severity", "title", "description", "timestamp"]
     for field in required_fields:
         assert field in alert, f"Missing required field: {field}"
         assert alert[field] is not None, f"Field {field} is None"
@@ -142,21 +121,17 @@ def assert_valid_alert(alert: Dict[str, Any]) -> None:
 
 def assert_valid_triage_result(result: Dict[str, Any]) -> None:
     """Assert that triage result has required fields."""
-    required_fields = [
-        "alert_id", "risk_level", "confidence", "reasoning"
-    ]
+    required_fields = ["alert_id", "risk_level", "confidence", "reasoning"]
     for field in required_fields:
         assert field in result, f"Missing required field: {field}"
         assert result[field] is not None, f"Field {field} is None"
 
     # Validate risk level
     valid_risk_levels = ["critical", "high", "medium", "low", "info"]
-    assert result["risk_level"] in valid_risk_levels, \
-        f"Invalid risk_level: {result['risk_level']}"
+    assert result["risk_level"] in valid_risk_levels, f"Invalid risk_level: {result['risk_level']}"
 
     # Validate confidence
-    assert 0 <= result["confidence"] <= 100, \
-        f"Confidence out of range: {result['confidence']}"
+    assert 0 <= result["confidence"] <= 100, f"Confidence out of range: {result['confidence']}"
 
 
 def assert_valid_enrichment(enrichment: Dict[str, Any]) -> None:
@@ -168,9 +143,7 @@ def assert_valid_enrichment(enrichment: Dict[str, Any]) -> None:
 
 
 def compare_dicts(
-    dict1: Dict[str, Any],
-    dict2: Dict[str, Any],
-    ignore_fields: Optional[List[str]] = None
+    dict1: Dict[str, Any], dict2: Dict[str, Any], ignore_fields: Optional[List[str]] = None
 ) -> bool:
     """
     Compare two dictionaries, ignoring specified fields.
@@ -191,9 +164,7 @@ def compare_dicts(
 
 
 def mock_message_queue_message(
-    message_type: str,
-    payload: Dict[str, Any],
-    message_id: Optional[str] = None
+    message_type: str, payload: Dict[str, Any], message_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """Create a mock message queue message."""
     return {
@@ -202,7 +173,7 @@ def mock_message_queue_message(
         "correlation_id": payload.get("alert_id", "unknown"),
         "timestamp": datetime.utcnow().isoformat(),
         "version": "1.0",
-        "payload": payload
+        "payload": payload,
     }
 
 
@@ -225,7 +196,7 @@ class MockMessageQueue:
 
     async def trigger_message(self, message: Dict[str, Any]) -> None:
         """Trigger callback with message."""
-        if hasattr(self, 'callback'):
+        if hasattr(self, "callback"):
             await self.callback(message)
 
 

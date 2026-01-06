@@ -37,9 +37,9 @@ class POCQuickStart:
 
     def print_banner(self):
         """Print welcome banner."""
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("  Security Alert Triage System - POC Quick Start".center(70))
-        print("="*70)
+        print("=" * 70)
         print()
 
     def check_environment(self):
@@ -50,7 +50,7 @@ class POCQuickStart:
             "Python": sys.version_info >= (3, 9),
             "pytest": self._check_module("pytest"),
             "POC directory": self.poc_dir.exists(),
-            "Project structure": (self.project_root / "services").exists()
+            "Project structure": (self.project_root / "services").exists(),
         }
 
         for name, passed in checks.items():
@@ -83,8 +83,10 @@ class POCQuickStart:
         cmd = [
             sys.executable,
             str(script),
-            "--count", str(count),
-            "--output", str(self.data_dir / "alerts.json")
+            "--count",
+            str(count),
+            "--output",
+            str(self.data_dir / "alerts.json"),
         ]
 
         result = subprocess.run(cmd, cwd=self.project_root)
@@ -99,8 +101,10 @@ class POCQuickStart:
         cmd = [
             sys.executable,
             str(script),
-            "--scenario", "all",
-            "--output", str(self.report_dir / "results.json")
+            "--scenario",
+            "all",
+            "--output",
+            str(self.report_dir / "results.json"),
         ]
 
         result = subprocess.run(cmd, cwd=self.project_root)
@@ -115,13 +119,14 @@ class POCQuickStart:
             return
 
         import json
+
         with open(report_file) as f:
             report = json.load(f)
 
         summary = report["poc_summary"]
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("POC Test Results Summary")
-        print("="*70)
+        print("=" * 70)
         print(f"Execution Date: {summary['execution_date']}")
         print(f"Total Scenarios: {summary['total_scenarios']}")
         print(f"Passed: {summary['passed']}")
@@ -131,17 +136,19 @@ class POCQuickStart:
         print("\nScenario Details:")
         for scenario in report["scenarios"]:
             status_icon = "✓" if scenario["status"] == "PASSED" else "✗"
-            print(f"  {status_icon} {scenario['test_name']}: {scenario['status']} ({scenario['duration']:.2f}s)")
+            print(
+                f"  {status_icon} {scenario['test_name']}: {scenario['status']} ({scenario['duration']:.2f}s)"
+            )
 
         print("\nFull report: test-reports/poc/results.json")
-        print("="*70)
+        print("=" * 70)
 
     def interactive_menu(self):
         """Interactive menu for POC testing."""
         while True:
-            print("\n" + "="*70)
+            print("\n" + "=" * 70)
             print("POC Quick Start Menu")
-            print("="*70)
+            print("=" * 70)
             print("1. Check environment")
             print("2. Generate test data (default: 100 alerts)")
             print("3. Run all POC scenarios")
@@ -188,10 +195,12 @@ class POCQuickStart:
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(description="POC Quick Start")
-    parser.add_argument("--mode", choices=["check", "data", "test", "results", "quick"],
-                       help="Run specific step directly")
-    parser.add_argument("--count", type=int, default=100,
-                       help="Number of alerts to generate")
+    parser.add_argument(
+        "--mode",
+        choices=["check", "data", "test", "results", "quick"],
+        help="Run specific step directly",
+    )
+    parser.add_argument("--count", type=int, default=100, help="Number of alerts to generate")
 
     args = parser.parse_args()
 

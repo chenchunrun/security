@@ -90,7 +90,7 @@ app = FastAPI(
     title="Monitoring & Metrics Service",
     description="Collects and exposes system and service metrics",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -112,36 +112,33 @@ async def collect_system_metrics():
             memory = psutil.virtual_memory()
 
             # Disk metrics
-            disk = psutil.disk_usage('/')
+            disk = psutil.disk_usage("/")
 
             # Network metrics
             net_io = psutil.net_io_counters()
 
             metric = {
                 "timestamp": datetime.utcnow().isoformat(),
-                "cpu": {
-                    "percent": cpu_percent,
-                    "count": psutil.cpu_count()
-                },
+                "cpu": {"percent": cpu_percent, "count": psutil.cpu_count()},
                 "memory": {
                     "total": memory.total,
                     "available": memory.available,
                     "percent": memory.percent,
                     "used": memory.used,
-                    "free": memory.free
+                    "free": memory.free,
                 },
                 "disk": {
                     "total": disk.total,
                     "used": disk.used,
                     "free": disk.free,
-                    "percent": disk.percent
+                    "percent": disk.percent,
                 },
                 "network": {
                     "bytes_sent": net_io.bytes_sent,
                     "bytes_recv": net_io.bytes_recv,
                     "packets_sent": net_io.packets_sent,
-                    "packets_recv": net_io.packets_recv
-                }
+                    "packets_recv": net_io.packets_recv,
+                },
             }
 
             metrics_store["system"].append(metric)
@@ -149,7 +146,8 @@ async def collect_system_metrics():
             # Keep only last hour of data
             cutoff = datetime.utcnow() - timedelta(hours=1)
             metrics_store["system"] = [
-                m for m in metrics_store["system"]
+                m
+                for m in metrics_store["system"]
                 if datetime.fromisoformat(m["timestamp"]) > cutoff
             ]
 
@@ -178,9 +176,11 @@ async def check_service_health():
                         service_health[service_name] = {
                             "status": "healthy" if is_healthy else "unhealthy",
                             "status_code": response.status_code,
-                            "response_time": response.elapsed.total_seconds() if hasattr(response, 'elapsed') else 0,
+                            "response_time": response.elapsed.total_seconds()
+                            if hasattr(response, "elapsed")
+                            else 0,
                             "last_check": datetime.utcnow().isoformat(),
-                            "url": service_config['url']
+                            "url": service_config["url"],
                         }
 
                     except Exception as e:
@@ -188,22 +188,24 @@ async def check_service_health():
                             "status": "unreachable",
                             "error": str(e),
                             "last_check": datetime.utcnow().isoformat(),
-                            "url": service_config['url']
+                            "url": service_config["url"],
                         }
 
                 # Store service health metrics
-                metrics_store["services"].append({
-                    "timestamp": datetime.utcnow().isoformat(),
-                    "services": {
-                        name: health["status"]
-                        for name, health in service_health.items()
+                metrics_store["services"].append(
+                    {
+                        "timestamp": datetime.utcnow().isoformat(),
+                        "services": {
+                            name: health["status"] for name, health in service_health.items()
+                        },
                     }
-                })
+                )
 
                 # Keep only last hour
                 cutoff = datetime.utcnow() - timedelta(hours=1)
                 metrics_store["services"] = [
-                    m for m in metrics_store["services"]
+                    m
+                    for m in metrics_store["services"]
                     if datetime.fromisoformat(m["timestamp"]) > cutoff
                 ]
 
@@ -224,7 +226,8 @@ async def cleanup_old_metrics():
             for metric_type in metrics_store:
                 original_count = len(metrics_store[metric_type])
                 metrics_store[metric_type] = [
-                    m for m in metrics_store[metric_type]
+                    m
+                    for m in metrics_store[metric_type]
                     if datetime.fromisoformat(m["timestamp"]) > cutoff
                 ]
                 removed = original_count - len(metrics_store[metric_type])
@@ -237,6 +240,7 @@ async def cleanup_old_metrics():
 
 
 # API Endpoints
+
 
 @app.get("/metrics", response_class=PlainTextResponse)
 async def prometheus_metrics():
@@ -281,22 +285,19 @@ async def prometheus_metrics():
             if "response_time" in health:
                 lines.append(f"# HELP service_response_time Service response time")
                 lines.append(f"# TYPE service_response_time gauge")
-                lines.append(f'service_response_time{{service="{service_name}"}} {health["response_time"]}')
+                lines.append(
+                    f'service_response_time{{service="{service_name}"}} {health["response_time"]}'
+                )
 
         return "\n".join(lines) + "\n"
 
     except Exception as e:
         logger.error(f"Failed to generate Prometheus metrics: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to generate metrics: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to generate metrics: {str(e)}")
 
 
 @app.get("/api/v1/metrics/system", response_model=Dict[str, Any])
-async def get_system_metrics(
-    limit: int = 60
-):
+async def get_system_metrics(limit: int = 60):
     """Get system metrics history."""
     try:
         metrics = metrics_store.get("system", [])
@@ -304,22 +305,13 @@ async def get_system_metrics(
 
         return {
             "success": True,
-            "data": {
-                "metrics": metrics,
-                "total": len(metrics)
-            },
-            "meta": {
-                "timestamp": datetime.utcnow().isoformat(),
-                "request_id": str(uuid.uuid4())
-            }
+            "data": {"metrics": metrics, "total": len(metrics)},
+            "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
         }
 
     except Exception as e:
         logger.error(f"Failed to get system metrics: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get system metrics: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to get system metrics: {str(e)}")
 
 
 @app.get("/api/v1/metrics/services", response_model=Dict[str, Any])
@@ -332,20 +324,16 @@ async def get_service_metrics():
                 "services": service_health,
                 "total": len(service_health),
                 "healthy": sum(1 for s in service_health.values() if s.get("status") == "healthy"),
-                "unhealthy": sum(1 for s in service_health.values() if s.get("status") != "healthy")
+                "unhealthy": sum(
+                    1 for s in service_health.values() if s.get("status") != "healthy"
+                ),
             },
-            "meta": {
-                "timestamp": datetime.utcnow().isoformat(),
-                "request_id": str(uuid.uuid4())
-            }
+            "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
         }
 
     except Exception as e:
         logger.error(f"Failed to get service metrics: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get service metrics: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to get service metrics: {str(e)}")
 
 
 @app.get("/api/v1/health/services", response_model=Dict[str, Any])
@@ -358,23 +346,23 @@ async def get_services_health():
                 "services": service_health,
                 "summary": {
                     "total": len(SERVICE_REGISTRY),
-                    "healthy": sum(1 for s in service_health.values() if s.get("status") == "healthy"),
-                    "unreachable": sum(1 for s in service_health.values() if s.get("status") == "unreachable"),
-                    "unhealthy": sum(1 for s in service_health.values() if s.get("status") == "unhealthy")
-                }
+                    "healthy": sum(
+                        1 for s in service_health.values() if s.get("status") == "healthy"
+                    ),
+                    "unreachable": sum(
+                        1 for s in service_health.values() if s.get("status") == "unreachable"
+                    ),
+                    "unhealthy": sum(
+                        1 for s in service_health.values() if s.get("status") == "unhealthy"
+                    ),
+                },
             },
-            "meta": {
-                "timestamp": datetime.utcnow().isoformat(),
-                "request_id": str(uuid.uuid4())
-            }
+            "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
         }
 
     except Exception as e:
         logger.error(f"Failed to get services health: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get services health: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to get services health: {str(e)}")
 
 
 @app.get("/health")
@@ -391,7 +379,7 @@ async def health_check():
         "monitored_services": total_count,
         "healthy_services": healthy_count,
         "unhealthy_services": total_count - healthy_count,
-        "metrics_types": list(metrics_store.keys())
+        "metrics_types": list(metrics_store.keys()),
     }
 
 

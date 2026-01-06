@@ -35,34 +35,30 @@ db_manager: DatabaseManager = None
 
 # In-memory configuration storage (use database in production)
 config_store: Dict[str, Dict[str, Any]] = {
-    "system": {
-        "version": "1.0.0",
-        "environment": "production",
-        "maintenance_mode": False
-    },
+    "system": {"version": "1.0.0", "environment": "production", "maintenance_mode": False},
     "alerts": {
         "auto_triage_enabled": True,
         "auto_response_threshold": "high",
-        "human_review_required": ["critical", "high"]
+        "human_review_required": ["critical", "high"],
     },
     "automation": {
         "approval_required": True,
         "timeout_seconds": 600,
-        "max_concurrent_executions": 10
+        "max_concurrent_executions": 10,
     },
     "notifications": {
         "channels": ["email", "slack"],
         "critical_alerts": ["email", "slack", "sms"],
         "high_alerts": ["email", "slack"],
         "medium_alerts": ["email"],
-        "low_alerts": ["in_app"]
+        "low_alerts": ["in_app"],
     },
     "llm": {
         "default_model": "deepseek-v3",
         "fallback_model": "qwen3-max",
         "temperature": 0.7,
-        "max_tokens": 2000
-    }
+        "max_tokens": 2000,
+    },
 }
 
 # Configuration change history
@@ -92,7 +88,7 @@ app = FastAPI(
     title="Configuration Service",
     description="Centralized configuration management",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -103,23 +99,21 @@ app.add_middleware(
 )
 
 
-def record_config_change(
-    key: str,
-    old_value: Any,
-    new_value: Any,
-    changed_by: str
-):
+def record_config_change(key: str, old_value: Any, new_value: Any, changed_by: str):
     """Record configuration change in history."""
-    config_history.append({
-        "timestamp": datetime.utcnow().isoformat(),
-        "key": key,
-        "old_value": old_value,
-        "new_value": new_value,
-        "changed_by": changed_by
-    })
+    config_history.append(
+        {
+            "timestamp": datetime.utcnow().isoformat(),
+            "key": key,
+            "old_value": old_value,
+            "new_value": new_value,
+            "changed_by": changed_by,
+        }
+    )
 
 
 # API Endpoints
+
 
 @app.get("/api/v1/config", response_model=Dict[str, Any])
 async def get_all_config():
@@ -127,10 +121,7 @@ async def get_all_config():
     return {
         "success": True,
         "data": config_store.copy(),
-        "meta": {
-            "timestamp": datetime.utcnow().isoformat(),
-            "request_id": str(uuid.uuid4())
-        }
+        "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
     }
 
 
@@ -138,37 +129,21 @@ async def get_all_config():
 async def get_config(key: str):
     """Get specific configuration by key."""
     if key not in config_store:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Configuration key not found: {key}"
-        )
+        raise HTTPException(status_code=404, detail=f"Configuration key not found: {key}")
 
     return {
         "success": True,
-        "data": {
-            "key": key,
-            "value": config_store[key]
-        },
-        "meta": {
-            "timestamp": datetime.utcnow().isoformat(),
-            "request_id": str(uuid.uuid4())
-        }
+        "data": {"key": key, "value": config_store[key]},
+        "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
     }
 
 
 @app.put("/api/v1/config/{key}", response_model=Dict[str, Any])
-async def update_config(
-    key: str,
-    value: Dict[str, Any],
-    changed_by: str = "system"
-):
+async def update_config(key: str, value: Dict[str, Any], changed_by: str = "system"):
     """Update configuration."""
     try:
         if key not in config_store:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Configuration key not found: {key}"
-            )
+            raise HTTPException(status_code=404, detail=f"Configuration key not found: {key}")
 
         old_value = config_store[key].copy()
 
@@ -185,25 +160,15 @@ async def update_config(
 
         return {
             "success": True,
-            "data": {
-                "key": key,
-                "value": value,
-                "old_value": old_value
-            },
-            "meta": {
-                "timestamp": datetime.utcnow().isoformat(),
-                "request_id": str(uuid.uuid4())
-            }
+            "data": {"key": key, "value": value, "old_value": old_value},
+            "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
         }
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to update configuration: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to update configuration: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to update configuration: {str(e)}")
 
 
 @app.post("/api/v1/config/{key}/reset", response_model=Dict[str, Any])
@@ -215,19 +180,18 @@ async def reset_config(key: str, changed_by: str = "system"):
             "alerts": {
                 "auto_triage_enabled": True,
                 "auto_response_threshold": "high",
-                "human_review_required": ["critical", "high"]
+                "human_review_required": ["critical", "high"],
             },
             "automation": {
                 "approval_required": True,
                 "timeout_seconds": 600,
-                "max_concurrent_executions": 10
-            }
+                "max_concurrent_executions": 10,
+            },
         }
 
         if key not in defaults:
             raise HTTPException(
-                status_code=400,
-                detail=f"No default configuration defined for: {key}"
+                status_code=400, detail=f"No default configuration defined for: {key}"
             )
 
         old_value = config_store.get(key, {}).copy()
@@ -241,34 +205,21 @@ async def reset_config(key: str, changed_by: str = "system"):
 
         return {
             "success": True,
-            "data": {
-                "key": key,
-                "value": new_value,
-                "reset": True
-            },
-            "meta": {
-                "timestamp": datetime.utcnow().isoformat(),
-                "request_id": str(uuid.uuid4())
-            }
+            "data": {"key": key, "value": new_value, "reset": True},
+            "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
         }
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to reset configuration: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to reset configuration: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to reset configuration: {str(e)}")
 
 
 @app.get("/api/v1/config/{key}/history", response_model=Dict[str, Any])
 async def get_config_history(key: str, limit: int = 50):
     """Get configuration change history."""
-    history = [
-        h for h in config_history
-        if h["key"] == key
-    ]
+    history = [h for h in config_history if h["key"] == key]
 
     # Sort by timestamp descending
     history = sorted(history, key=lambda x: x["timestamp"], reverse=True)
@@ -278,15 +229,8 @@ async def get_config_history(key: str, limit: int = 50):
 
     return {
         "success": True,
-        "data": {
-            "key": key,
-            "history": history,
-            "total": len(history)
-        },
-        "meta": {
-            "timestamp": datetime.utcnow().isoformat(),
-            "request_id": str(uuid.uuid4())
-        }
+        "data": {"key": key, "history": history, "total": len(history)},
+        "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
     }
 
 
@@ -306,8 +250,7 @@ async def export_config(format: str = "json"):
 
         else:
             raise HTTPException(
-                status_code=400,
-                detail=f"Unsupported format: {format}. Use 'json' or 'yaml'"
+                status_code=400, detail=f"Unsupported format: {format}. Use 'json' or 'yaml'"
             )
 
         return {
@@ -316,30 +259,21 @@ async def export_config(format: str = "json"):
                 "content": content,
                 "format": format,
                 "filename": filename,
-                "content_type": content_type
+                "content_type": content_type,
             },
-            "meta": {
-                "timestamp": datetime.utcnow().isoformat(),
-                "request_id": str(uuid.uuid4())
-            }
+            "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
         }
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to export configuration: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to export configuration: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to export configuration: {str(e)}")
 
 
 @app.post("/api/v1/config/import", response_model=Dict[str, Any])
 async def import_config(
-    content: str,
-    format: str = "json",
-    merge: bool = True,
-    changed_by: str = "import"
+    content: str, format: str = "json", merge: bool = True, changed_by: str = "import"
 ):
     """Import configuration."""
     try:
@@ -349,23 +283,16 @@ async def import_config(
             imported_config = yaml.safe_load(content)
         else:
             raise HTTPException(
-                status_code=400,
-                detail=f"Unsupported format: {format}. Use 'json' or 'yaml'"
+                status_code=400, detail=f"Unsupported format: {format}. Use 'json' or 'yaml'"
             )
 
         if not isinstance(imported_config, dict):
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid configuration format"
-            )
+            raise HTTPException(status_code=400, detail="Invalid configuration format")
 
-    # Validate imported configuration
+        # Validate imported configuration
         for key, value in imported_config.items():
             if key in config_store and not isinstance(value, dict):
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Invalid configuration for key: {key}"
-                )
+                raise HTTPException(status_code=400, detail=f"Invalid configuration for key: {key}")
 
         # Apply configuration
         imported_keys = []
@@ -389,34 +316,19 @@ async def import_config(
 
         return {
             "success": True,
-            "data": {
-                "imported_keys": imported_keys,
-                "total": len(imported_keys)
-            },
-            "meta": {
-                "timestamp": datetime.utcnow().isoformat(),
-                "request_id": str(uuid.uuid4())
-            }
+            "data": {"imported_keys": imported_keys, "total": len(imported_keys)},
+            "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
         }
 
     except HTTPException:
         raise
     except json.JSONDecodeError as e:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid JSON: {str(e)}"
-        )
+        raise HTTPException(status_code=400, detail=f"Invalid JSON: {str(e)}")
     except yaml.YAMLError as e:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid YAML: {str(e)}"
-        )
+        raise HTTPException(status_code=400, detail=f"Invalid YAML: {str(e)}")
     except Exception as e:
         logger.error(f"Failed to import configuration: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to import configuration: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to import configuration: {str(e)}")
 
 
 @app.get("/health")
@@ -427,7 +339,7 @@ async def health_check():
         "service": "configuration-service",
         "timestamp": datetime.utcnow().isoformat(),
         "config_keys": len(config_store),
-        "history_entries": len(config_history)
+        "history_entries": len(config_history),
     }
 
 

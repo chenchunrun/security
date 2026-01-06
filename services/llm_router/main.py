@@ -119,7 +119,7 @@ async def lifespan(app: FastAPI):
     # Initialize HTTP client for LLM API calls
     http_client = httpx.AsyncClient(
         timeout=httpx.Timeout(60.0, connect=10.0),
-        limits=httpx.Limits(max_keepalive_connections=50, max_connections=100)
+        limits=httpx.Limits(max_keepalive_connections=50, max_connections=100),
     )
 
     logger.info("LLM Router service started successfully")
@@ -136,7 +136,7 @@ app = FastAPI(
     title="LLM Router Service",
     description="Intelligently routes LLM requests to optimal models",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -162,16 +162,9 @@ def route_request(request: LLMRequest) -> RouterDecision:
     if request.model:
         caps = MODEL_CAPABILITIES.get(request.model)
         if not caps:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Model {request.model} not found"
-            )
+            raise HTTPException(status_code=400, detail=f"Model {request.model} not found")
 
-        provider = (
-            LLMProvider.DEEPSEEK
-            if "deepseek" in request.model.value
-            else LLMProvider.QWEN
-        )
+        provider = LLMProvider.DEEPSEEK if "deepseek" in request.model.value else LLMProvider.QWEN
 
         return RouterDecision(
             selected_provider=provider,
@@ -197,9 +190,10 @@ def route_request(request: LLMRequest) -> RouterDecision:
                 continue  # Skip if context too large
 
             # Select best match
-            if not selected_model or caps.reasoning_quality > MODEL_CAPABILITIES[
-                selected_model
-            ].reasoning_quality:
+            if (
+                not selected_model
+                or caps.reasoning_quality > MODEL_CAPABILITIES[selected_model].reasoning_quality
+            ):
                 selected_model = model
                 reason = f"Best match for {request.task_type} task"
                 confidence = 0.9
@@ -211,18 +205,13 @@ def route_request(request: LLMRequest) -> RouterDecision:
         confidence = 0.7
 
     # Determine provider from model
-    provider = (
-        LLMProvider.DEEPSEEK
-        if "deepseek" in selected_model.value
-        else LLMProvider.QWEN
-    )
+    provider = LLMProvider.DEEPSEEK if "deepseek" in selected_model.value else LLMProvider.QWEN
 
     # Get alternatives
     alternatives = [
         m
         for m in MODEL_CAPABILITIES.keys()
-        if m != selected_model
-        and request.task_type in MODEL_CAPABILITIES[m].best_for
+        if m != selected_model and request.task_type in MODEL_CAPABILITIES[m].best_for
     ][:3]
 
     return RouterDecision(
@@ -291,10 +280,7 @@ async def call_deepseek(
 
     except httpx.HTTPError as e:
         logger.error(f"DeepSeek API error: {e}")
-        raise HTTPException(
-            status_code=502,
-            detail=f"DeepSeek API error: {str(e)}"
-        )
+        raise HTTPException(status_code=502, detail=f"DeepSeek API error: {str(e)}")
 
 
 async def call_qwen(
@@ -353,10 +339,7 @@ async def call_qwen(
 
     except httpx.HTTPError as e:
         logger.error(f"Qwen API error: {e}")
-        raise HTTPException(
-            status_code=502,
-            detail=f"Qwen API error: {str(e)}"
-        )
+        raise HTTPException(status_code=502, detail=f"Qwen API error: {str(e)}")
 
 
 @app.post("/api/v1/chat/completions", response_model=SuccessResponse[LLMResponse])
@@ -374,28 +357,21 @@ async def chat_completions(request: LLMRequest):
         # Route request
         decision = route_request(request)
         logger.info(
-            f"Routing request to {decision.selected_model.value} "
-            f"(reason: {decision.reason})"
+            f"Routing request to {decision.selected_model.value} " f"(reason: {decision.reason})"
         )
 
         # Get API key from environment
         if decision.selected_provider == LLMProvider.DEEPSEEK:
             api_key = config.get("DEEPSEEK_API_KEY")
             if not api_key:
-                raise HTTPException(
-                    status_code=500,
-                    detail="DEEPSEEK_API_KEY not configured"
-                )
+                raise HTTPException(status_code=500, detail="DEEPSEEK_API_KEY not configured")
 
             response = await call_deepseek(request, decision, api_key)
 
         else:  # QWEN
             api_key = config.get("QWEN_API_KEY")
             if not api_key:
-                raise HTTPException(
-                    status_code=500,
-                    detail="QWEN_API_KEY not configured"
-                )
+                raise HTTPException(status_code=500, detail="QWEN_API_KEY not configured")
 
             response = await call_qwen(request, decision, api_key)
 
@@ -417,10 +393,7 @@ async def chat_completions(request: LLMRequest):
         raise
     except Exception as e:
         logger.error(f"Chat completion failed: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Internal server error: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @app.get("/api/v1/models", response_model=SuccessResponse[Dict[str, ModelCapabilities]])
@@ -440,10 +413,7 @@ async def get_model_capabilities(model: LLMModel):
     """Get capabilities for a specific model."""
     caps = MODEL_CAPABILITIES.get(model)
     if not caps:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Model {model} not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Model {model} not found")
 
     return SuccessResponse(
         data=caps,

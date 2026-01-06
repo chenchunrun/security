@@ -103,39 +103,33 @@ class RemediationAction(BaseModel):
     action_type: ActionType = Field(..., description="Type of remediation action")
     priority: RemediationPriority = Field(..., description="Action priority")
     title: str = Field(..., min_length=1, max_length=200, description="Action title")
-    description: str = Field(
-        ..., min_length=1, max_length=1000, description="Detailed description"
-    )
+    description: str = Field(..., min_length=1, max_length=1000, description="Detailed description")
 
-    is_automated: bool = Field(
-        default=False, description="Whether action can be automated"
-    )
+    is_automated: bool = Field(default=False, description="Whether action can be automated")
     execution_time_seconds: Optional[int] = Field(
         default=None, ge=0, description="Estimated execution time"
     )
-    owner: Optional[str] = Field(
-        default=None, description="Responsible party (for manual actions)"
-    )
+    owner: Optional[str] = Field(default=None, description="Responsible party (for manual actions)")
 
     # Execution details
     script_path: Optional[str] = Field(
         default=None, description="Script path for automated actions"
     )
-    parameters: dict[str, Any] = Field(
-        default_factory=dict, description="Action parameters"
-    )
+    parameters: dict[str, Any] = Field(default_factory=dict, description="Action parameters")
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "action_type": "isolate_host",
                 "priority": "immediate",
                 "title": "Isolate compromised host from network",
                 "description": "Disconnect the host from the network to prevent lateral movement",
                 "is_automated": True,
                 "execution_time_seconds": 30,
-                "parameters": {"host": "10.0.0.50", "method": "firewall"}
+                "parameters": {"host": "10.0.0.50", "method": "firewall"},
             }
-    })
+        }
+    )
 
 
 class RiskAssessment(BaseModel):
@@ -151,13 +145,9 @@ class RiskAssessment(BaseModel):
         assessment_time: When assessment was performed
     """
 
-    risk_score: float = Field(
-        ..., ge=0.0, le=100.0, description="Overall risk score (0-100)"
-    )
+    risk_score: float = Field(..., ge=0.0, le=100.0, description="Overall risk score (0-100)")
     risk_level: RiskLevel = Field(..., description="Risk level classification")
-    confidence: float = Field(
-        ..., ge=0.0, le=1.0, description="Confidence in assessment (0-1)"
-    )
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence in assessment (0-1)")
 
     # Scoring components
     severity_score: float = Field(
@@ -179,9 +169,7 @@ class RiskAssessment(BaseModel):
     )
 
     # Human review determination
-    requires_human_review: bool = Field(
-        ..., description="Whether human review is required"
-    )
+    requires_human_review: bool = Field(..., description="Whether human review is required")
     review_reason: Optional[str] = Field(
         default=None, description="Reason for requiring human review"
     )
@@ -200,8 +188,9 @@ class RiskAssessment(BaseModel):
             pass
         return v
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "risk_score": 75.5,
                 "risk_level": "high",
                 "confidence": 0.85,
@@ -212,12 +201,13 @@ class RiskAssessment(BaseModel):
                 "key_factors": [
                     "High severity alert",
                     "Known malicious file hash",
-                    "Target asset is critical"
+                    "Target asset is critical",
                 ],
                 "requires_human_review": True,
-                "review_reason": "High risk score with moderate confidence"
+                "review_reason": "High risk score with moderate confidence",
             }
-    })
+        }
+    )
 
 
 class TriageResult(BaseModel):
@@ -242,15 +232,11 @@ class TriageResult(BaseModel):
     alert_id: str = Field(..., description="Associated alert ID")
 
     # Assessment components
-    risk_assessment: RiskAssessment = Field(
-        ..., description="Risk assessment results"
-    )
+    risk_assessment: RiskAssessment = Field(..., description="Risk assessment results")
     threat_intel_found: bool = Field(
         default=False, description="Whether threat intelligence was found"
     )
-    ioc_matches: int = Field(
-        default=0, ge=0, description="Number of IOC matches"
-    )
+    ioc_matches: int = Field(default=0, ge=0, description="Number of IOC matches")
 
     # Remediation
     remediation_actions: list[RemediationAction] = Field(
@@ -258,40 +244,27 @@ class TriageResult(BaseModel):
     )
 
     # Processing metadata
-    requires_human_review: bool = Field(
-        ..., description="Whether human review is required"
-    )
-    processing_time_ms: float = Field(
-        ..., ge=0.0, description="Processing time in milliseconds"
-    )
+    requires_human_review: bool = Field(..., description="Whether human review is required")
+    processing_time_ms: float = Field(..., ge=0.0, description="Processing time in milliseconds")
     triage_time: datetime = Field(
         default_factory=datetime.utcnow, description="When triage was completed"
     )
 
     # Analyst interaction
-    analyst_notes: Optional[str] = Field(
-        default=None, description="Notes for human analysts"
-    )
+    analyst_notes: Optional[str] = Field(default=None, description="Notes for human analysts")
     reviewed_by: Optional[str] = Field(
         default=None, description="Analyst who reviewed (if reviewed)"
     )
-    review_time: Optional[datetime] = Field(
-        default=None, description="When alert was reviewed"
-    )
+    review_time: Optional[datetime] = Field(default=None, description="When alert was reviewed")
 
     # Additional metadata
-    metadata: dict[str, Any] = Field(
-        default_factory=dict, description="Additional metadata"
-    )
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "alert_id": "ALT-2025-001",
-                "risk_assessment": {
-                    "risk_score": 75.5,
-                    "risk_level": "high",
-                    "confidence": 0.85
-                },
+                "risk_assessment": {"risk_score": 75.5, "risk_level": "high", "confidence": 0.85},
                 "threat_intel_found": True,
                 "ioc_matches": 1,
                 "remediation_actions": [
@@ -300,10 +273,11 @@ class TriageResult(BaseModel):
                         "priority": "immediate",
                         "title": "Isolate compromised host",
                         "description": "Disconnect host from network",
-                        "is_automated": True
+                        "is_automated": True,
                     }
                 ],
                 "requires_human_review": True,
-                "processing_time_ms": 2340.5
+                "processing_time_ms": 2340.5,
             }
-    })
+        }
+    )

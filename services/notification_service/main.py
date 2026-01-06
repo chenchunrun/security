@@ -92,7 +92,7 @@ app = FastAPI(
     title="Notification Service",
     description="Sends notifications via multiple channels",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -105,11 +105,9 @@ app.add_middleware(
 
 # Notification channel implementations
 
+
 async def send_email(
-    recipient: str,
-    subject: str,
-    body: str,
-    html_body: Optional[str] = None
+    recipient: str, subject: str, body: str, html_body: Optional[str] = None
 ) -> Dict[str, Any]:
     """Send email notification."""
     try:
@@ -123,72 +121,45 @@ async def send_email(
             "success": True,
             "channel": "email",
             "recipient": recipient,
-            "message_id": f"email-{uuid.uuid4()}"
+            "message_id": f"email-{uuid.uuid4()}",
         }
 
     except Exception as e:
         logger.error(f"Failed to send email: {e}", exc_info=True)
-        return {
-            "success": False,
-            "channel": "email",
-            "error": str(e)
-        }
+        return {"success": False, "channel": "email", "error": str(e)}
 
 
 async def send_slack(
-    webhook_url: str,
-    message: str,
-    channel: Optional[str] = None,
-    username: Optional[str] = None
+    webhook_url: str, message: str, channel: Optional[str] = None, username: Optional[str] = None
 ) -> Dict[str, Any]:
     """Send Slack notification."""
     try:
-        payload = {
-            "text": message,
-            "username": username or "Security Triage Bot"
-        }
+        payload = {"text": message, "username": username or "Security Triage Bot"}
 
         if channel:
             payload["channel"] = channel
 
         async with httpx.AsyncClient() as client:
-            response = await client.post(
-                webhook_url,
-                json=payload,
-                timeout=10.0
-            )
+            response = await client.post(webhook_url, json=payload, timeout=10.0)
             response.raise_for_status()
 
         logger.info(f"Slack message sent to {channel or 'default channel'}")
 
-        return {
-            "success": True,
-            "channel": "slack",
-            "webhook_url": webhook_url
-        }
+        return {"success": True, "channel": "slack", "webhook_url": webhook_url}
 
     except Exception as e:
         logger.error(f"Failed to send Slack message: {e}", exc_info=True)
-        return {
-            "success": False,
-            "channel": "slack",
-            "error": str(e)
-        }
+        return {"success": False, "channel": "slack", "error": str(e)}
 
 
 async def send_webhook(
-    webhook_url: str,
-    payload: Dict[str, Any],
-    headers: Optional[Dict[str, str]] = None
+    webhook_url: str, payload: Dict[str, Any], headers: Optional[Dict[str, str]] = None
 ) -> Dict[str, Any]:
     """Send webhook notification."""
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                webhook_url,
-                json=payload,
-                headers=headers or {},
-                timeout=10.0
+                webhook_url, json=payload, headers=headers or {}, timeout=10.0
             )
             response.raise_for_status()
 
@@ -198,16 +169,12 @@ async def send_webhook(
             "success": True,
             "channel": "webhook",
             "webhook_url": webhook_url,
-            "status_code": response.status_code
+            "status_code": response.status_code,
         }
 
     except Exception as e:
         logger.error(f"Failed to send webhook: {e}", exc_info=True)
-        return {
-            "success": False,
-            "channel": "webhook",
-            "error": str(e)
-        }
+        return {"success": False, "channel": "webhook", "error": str(e)}
 
 
 async def send_notification(
@@ -216,7 +183,7 @@ async def send_notification(
     subject: str,
     message: str,
     priority: NotificationPriority = NotificationPriority.NORMAL,
-    data: Optional[Dict[str, Any]] = None
+    data: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Send notification via specified channel."""
     try:
@@ -227,10 +194,7 @@ async def send_notification(
             return await send_slack(recipient, message)
 
         elif channel == NotificationChannel.WEBHOOK:
-            return await send_webhook(
-                recipient,
-                data or {"message": message, "subject": subject}
-            )
+            return await send_webhook(recipient, data or {"message": message, "subject": subject})
 
         elif channel == NotificationChannel.SMS:
             # TODO: Implement SMS (Twilio, AWS SNS)
@@ -247,15 +211,12 @@ async def send_notification(
 
     except Exception as e:
         logger.error(f"Failed to send notification: {e}", exc_info=True)
-        return {
-            "success": False,
-            "channel": channel.value,
-            "error": str(e)
-        }
+        return {"success": False, "channel": channel.value, "error": str(e)}
 
 
 async def consume_notifications():
     """Consume notification requests from message queue."""
+
     async def process_message(message: dict):
         try:
             payload = message["payload"]
@@ -272,12 +233,7 @@ async def consume_notifications():
 
             # Send notification
             result = await send_notification(
-                channel,
-                recipient,
-                subject,
-                message_text,
-                priority,
-                data
+                channel, recipient, subject, message_text, priority, data
             )
 
             if result.get("success"):
@@ -293,6 +249,7 @@ async def consume_notifications():
 
 # API Endpoints
 
+
 @app.post("/api/v1/notifications/send", response_model=Dict[str, Any])
 async def send_notification_api(
     channel: NotificationChannel,
@@ -301,7 +258,7 @@ async def send_notification_api(
     message: str,
     priority: NotificationPriority = NotificationPriority.NORMAL,
     data: Optional[Dict[str, Any]] = None,
-    background_tasks: BackgroundTasks = None
+    background_tasks: BackgroundTasks = None,
 ):
     """
     Send notification via API.
@@ -316,30 +273,17 @@ async def send_notification_api(
     """
     try:
         # Send notification
-        result = await send_notification(
-            channel,
-            recipient,
-            subject,
-            message,
-            priority,
-            data
-        )
+        result = await send_notification(channel, recipient, subject, message, priority, data)
 
         return {
             "success": result.get("success", False),
             "data": result,
-            "meta": {
-                "timestamp": datetime.utcnow().isoformat(),
-                "request_id": str(uuid.uuid4())
-            }
+            "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
         }
 
     except Exception as e:
         logger.error(f"Failed to send notification: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to send notification: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to send notification: {str(e)}")
 
 
 @app.post("/api/v1/notifications/broadcast", response_model=Dict[str, Any])
@@ -349,20 +293,14 @@ async def broadcast_notification(
     subject: str,
     message: str,
     priority: NotificationPriority = NotificationPriority.NORMAL,
-    background_tasks: BackgroundTasks = None
+    background_tasks: BackgroundTasks = None,
 ):
     """Broadcast notification to multiple recipients."""
     try:
         results = []
 
         for recipient in recipients:
-            result = await send_notification(
-                channel,
-                recipient,
-                subject,
-                message,
-                priority
-            )
+            result = await send_notification(channel, recipient, subject, message, priority)
             results.append(result)
 
         successful = sum(1 for r in results if r.get("success"))
@@ -374,20 +312,14 @@ async def broadcast_notification(
                 "total": total,
                 "successful": successful,
                 "failed": total - successful,
-                "results": results
+                "results": results,
             },
-            "meta": {
-                "timestamp": datetime.utcnow().isoformat(),
-                "request_id": str(uuid.uuid4())
-            }
+            "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
         }
 
     except Exception as e:
         logger.error(f"Failed to broadcast notification: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to broadcast notification: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to broadcast notification: {str(e)}")
 
 
 @app.get("/health")
@@ -397,7 +329,7 @@ async def health_check():
         "status": "healthy",
         "service": "notification-service",
         "timestamp": datetime.utcnow().isoformat(),
-        "channels": [c.value for c in NotificationChannel]
+        "channels": [c.value for c in NotificationChannel],
     }
 
 

@@ -32,6 +32,7 @@ from dataclasses import dataclass
 @dataclass
 class TestResult:
     """Result of a single test execution."""
+
     scenario: str
     test_name: str
     passed: bool
@@ -53,9 +54,9 @@ class POCTestExecutor:
 
         Verifies complete flow from alert ingestion to triage.
         """
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("Scenario 1: Normal Alert Processing Flow")
-        print("="*60)
+        print("=" * 60)
 
         start_time = time.time()
         errors = []
@@ -66,13 +67,13 @@ class POCTestExecutor:
             print("\nStep 1: Generate test alert")
             import sys
             from pathlib import Path
+
             sys.path.insert(0, str(Path(__file__).parent.parent.parent))
             from tests.poc.data_generator import AlertDataGenerator
+
             generator = AlertDataGenerator()
             alert = generator.generate_alert(
-                alert_id="ALT-POC-SCENARIO-001",
-                alert_type="malware",
-                severity="high"
+                alert_id="ALT-POC-SCENARIO-001", alert_type="malware", severity="high"
             )
             print(f"  ✓ Generated alert: {alert['alert_id']}")
             details["alert"] = alert
@@ -96,9 +97,11 @@ class POCTestExecutor:
                 "risk_level": "high",
                 "risk_score": 78.0,
                 "confidence": 0.85,
-                "remediation_actions": ["isolate_host", "block_ip"]
+                "remediation_actions": ["isolate_host", "block_ip"],
             }
-            print(f"  ✓ Triage complete: Risk={triage_result['risk_level']}, Score={triage_result['risk_score']}")
+            print(
+                f"  ✓ Triage complete: Risk={triage_result['risk_level']}, Score={triage_result['risk_score']}"
+            )
             details["triage"] = triage_result
 
             passed = len(errors) == 0
@@ -115,7 +118,7 @@ class POCTestExecutor:
             passed=passed,
             duration=duration,
             details=details,
-            errors=errors
+            errors=errors,
         )
 
         self.results.append(result)
@@ -132,9 +135,9 @@ class POCTestExecutor:
 
         Verifies system can handle 100 alerts/second.
         """
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("Scenario 2: High Load Performance Test")
-        print("="*60)
+        print("=" * 60)
 
         start_time = time.time()
         errors = []
@@ -153,8 +156,10 @@ class POCTestExecutor:
             print("\nStep 1: Generate test alerts")
             import sys
             from pathlib import Path
+
             sys.path.insert(0, str(Path(__file__).parent.parent.parent))
             from tests.poc.data_generator import AlertDataGenerator
+
             generator = AlertDataGenerator()
             alerts = generator.generate_alerts(total_alerts)
             print(f"  ✓ Generated {len(alerts)} alerts")
@@ -189,13 +194,16 @@ class POCTestExecutor:
 
             # Validation
             passed = (
-                actual_throughput >= target_throughput * 0.90 and  # Within 10% tolerance for POC
-                processed >= total_alerts * 0.98  # 98% success rate
+                actual_throughput >= target_throughput * 0.90
+                and processed  # Within 10% tolerance for POC
+                >= total_alerts * 0.98  # 98% success rate
             )
 
             if not passed:
                 if actual_throughput < target_throughput * 0.90:
-                    errors.append(f"Throughput below target: {actual_throughput:.2f} < {target_throughput * 0.90:.0f}")
+                    errors.append(
+                        f"Throughput below target: {actual_throughput:.2f} < {target_throughput * 0.90:.0f}"
+                    )
                 if processed < total_alerts * 0.98:
                     errors.append(f"Success rate below 98%: {(processed/total_alerts)*100:.1f}%")
 
@@ -211,7 +219,7 @@ class POCTestExecutor:
             passed=passed,
             duration=duration,
             details=details,
-            errors=errors
+            errors=errors,
         )
 
         self.results.append(result)
@@ -228,9 +236,9 @@ class POCTestExecutor:
 
         Verifies AI model classification accuracy.
         """
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("Scenario 3: AI Classification Accuracy Test")
-        print("="*60)
+        print("=" * 60)
 
         start_time = time.time()
         errors = []
@@ -252,7 +260,11 @@ class POCTestExecutor:
             for i in range(test_data_size):
                 # Simulate classification with 88% accuracy
                 predicted = "malware" if i % 2 == 0 else "benign"
-                actual = predicted if random.random() < 0.88 else ("benign" if predicted == "malware" else "malware")
+                actual = (
+                    predicted
+                    if random.random() < 0.88
+                    else ("benign" if predicted == "malware" else "malware")
+                )
                 if predicted == actual:
                     correct += 1
 
@@ -269,11 +281,7 @@ class POCTestExecutor:
             print(f"  ✓ Precision: {precision*100:.1f}%")
             print(f"  ✓ Recall: {recall*100:.1f}%")
             print(f"  ✓ F1 Score: {f1_score:.3f}")
-            details.update({
-                "precision": precision,
-                "recall": recall,
-                "f1_score": f1_score
-            })
+            details.update({"precision": precision, "recall": recall, "f1_score": f1_score})
 
             # Validation
             passed = accuracy >= 0.85  # ≥85% accuracy target
@@ -292,7 +300,7 @@ class POCTestExecutor:
             passed=passed,
             duration=duration,
             details=details,
-            errors=errors
+            errors=errors,
         )
 
         self.results.append(result)
@@ -315,9 +323,9 @@ class POCTestExecutor:
                 "total_scenarios": total_tests,
                 "passed": passed_tests,
                 "failed": failed_tests,
-                "pass_rate": (passed_tests / total_tests * 100) if total_tests > 0 else 0
+                "pass_rate": (passed_tests / total_tests * 100) if total_tests > 0 else 0,
             },
-            "scenarios": []
+            "scenarios": [],
         }
 
         for result in self.results:
@@ -326,7 +334,7 @@ class POCTestExecutor:
                 "test_name": result.test_name,
                 "status": "PASSED" if result.passed else "FAILED",
                 "duration": result.duration,
-                "details": result.details
+                "details": result.details,
             }
             if result.errors:
                 scenario_report["errors"] = result.errors
@@ -342,7 +350,7 @@ class POCTestExecutor:
         # Create directory if needed
         Path(filepath).parent.mkdir(parents=True, exist_ok=True)
 
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             json.dump(report, f, indent=2, default=str)
 
         print(f"\n✓ Report saved to {filepath}")
@@ -352,9 +360,9 @@ class POCTestExecutor:
         report = self.generate_report()
         summary = report["poc_summary"]
 
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("POC Test Execution Summary")
-        print("="*60)
+        print("=" * 60)
         print(f"Execution Date: {summary['execution_date']}")
         print(f"Total Scenarios: {summary['total_scenarios']}")
         print(f"Passed: {summary['passed']}")
@@ -364,9 +372,11 @@ class POCTestExecutor:
         print("\nDetailed Results:")
         for scenario in report["scenarios"]:
             status_icon = "✓" if scenario["status"] == "PASSED" else "✗"
-            print(f"  {status_icon} {scenario['test_name']}: {scenario['status']} ({scenario['duration']:.2f}s)")
+            print(
+                f"  {status_icon} {scenario['test_name']}: {scenario['status']} ({scenario['duration']:.2f}s)"
+            )
 
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
 
 
 async def main():
@@ -374,18 +384,24 @@ async def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="Execute POC test scenarios")
-    parser.add_argument("--scenario", type=str, choices=["1", "2", "3", "all"], default="all",
-                        help="Scenario to execute")
-    parser.add_argument("--output", type=str, default="test-reports/poc-results.json",
-                        help="Report output path")
+    parser.add_argument(
+        "--scenario",
+        type=str,
+        choices=["1", "2", "3", "all"],
+        default="all",
+        help="Scenario to execute",
+    )
+    parser.add_argument(
+        "--output", type=str, default="test-reports/poc-results.json", help="Report output path"
+    )
 
     args = parser.parse_args()
 
     executor = POCTestExecutor()
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("Security Triage System - POC Test Execution")
-    print("="*60)
+    print("=" * 60)
     print(f"Start Time: {datetime.utcnow().isoformat()}")
 
     if args.scenario == "all":

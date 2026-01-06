@@ -58,34 +58,18 @@ def main():
         nargs="?",
         choices=["unit", "integration", "e2e", "all"],
         default="all",
-        help="Type of tests to run"
+        help="Type of tests to run",
     )
     parser.add_argument(
         "--stage",
         type=str,
-        help="Run tests for specific stage (e.g., stage1, stage2, stage3, stage4)"
+        help="Run tests for specific stage (e.g., stage1, stage2, stage3, stage4)",
     )
+    parser.add_argument("--cov", action="store_true", help="Generate coverage report")
+    parser.add_argument("--html", action="store_true", help="Generate HTML report")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
     parser.add_argument(
-        "--cov",
-        action="store_true",
-        help="Generate coverage report"
-    )
-    parser.add_argument(
-        "--html",
-        action="store_true",
-        help="Generate HTML report"
-    )
-    parser.add_argument(
-        "--verbose",
-        "-v",
-        action="store_true",
-        help="Verbose output"
-    )
-    parser.add_argument(
-        "--parallel",
-        "-n",
-        type=int,
-        help="Number of parallel workers (requires pytest-xdist)"
+        "--parallel", "-n", type=int, help="Number of parallel workers (requires pytest-xdist)"
     )
 
     args = parser.parse_args()
@@ -101,22 +85,23 @@ def main():
 
     # Add coverage
     if args.cov:
-        pytest_cmd.extend([
-            "--cov=services",
-            "--cov-report=html",
-            "--cov-report=term-missing",
-            "--cov-fail-under=80"
-        ])
+        pytest_cmd.extend(
+            [
+                "--cov=services",
+                "--cov-report=html",
+                "--cov-report=term-missing",
+                "--cov-fail-under=80",
+            ]
+        )
 
     # Add HTML report
     if args.html:
         report_dir = Path(__file__).parent.parent / "test-reports"
         report_dir.mkdir(exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        pytest_cmd.extend([
-            "--html", str(report_dir / f"report_{timestamp}.html"),
-            "--self-contained-html"
-        ])
+        pytest_cmd.extend(
+            ["--html", str(report_dir / f"report_{timestamp}.html"), "--self-contained-html"]
+        )
 
     # Add parallel execution
     if args.parallel:

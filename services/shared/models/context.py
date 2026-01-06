@@ -42,12 +42,8 @@ class NetworkContext(BaseModel):
     """
 
     ip_address: str = Field(..., description="IP address")
-    is_internal: bool = Field(
-        ..., description="Whether IP is internal/private network"
-    )
-    is_known_malicious: bool = Field(
-        default=False, description="Whether IP is known malicious"
-    )
+    is_internal: bool = Field(..., description="Whether IP is internal/private network")
+    is_known_malicious: bool = Field(default=False, description="Whether IP is known malicious")
     reputation_score: float = Field(
         default=50.0, ge=0.0, le=100.0, description="IP reputation score (0-100)"
     )
@@ -68,12 +64,11 @@ class NetworkContext(BaseModel):
     last_updated: datetime = Field(
         default_factory=datetime.utcnow, description="When context was retrieved"
     )
-    metadata: dict[str, Any] = Field(
-        default_factory=dict, description="Additional metadata"
-    )
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "ip_address": "45.33.32.156",
                 "is_internal": False,
                 "is_known_malicious": True,
@@ -83,9 +78,10 @@ class NetworkContext(BaseModel):
                 "city": "Dallas",
                 "asn": 20004,
                 "isp": "The Constant Company, LLC",
-                "org": "GitHub, Inc."
+                "org": "GitHub, Inc.",
             }
-    })
+        }
+    )
 
 
 class AssetContext(BaseModel):
@@ -121,15 +117,11 @@ class AssetContext(BaseModel):
     location: Optional[str] = Field(default=None, description="Physical location")
 
     # Vulnerability management
-    vulnerability_count: int = Field(
-        default=0, ge=0, description="Number of known vulnerabilities"
-    )
+    vulnerability_count: int = Field(default=0, ge=0, description="Number of known vulnerabilities")
     critical_vulnerabilities: int = Field(
         default=0, ge=0, description="Number of critical vulnerabilities"
     )
-    last_patch_date: Optional[datetime] = Field(
-        default=None, description="Last patch date"
-    )
+    last_patch_date: Optional[datetime] = Field(default=None, description="Last patch date")
 
     # Network
     ip_address: Optional[str] = Field(default=None, description="Primary IP address")
@@ -139,12 +131,11 @@ class AssetContext(BaseModel):
     last_updated: datetime = Field(
         default_factory=datetime.utcnow, description="When context was retrieved"
     )
-    metadata: dict[str, Any] = Field(
-        default_factory=dict, description="Additional metadata"
-    )
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "asset_id": "ASSET-001",
                 "asset_name": "WEB-SRV-01",
                 "asset_type": "server",
@@ -156,9 +147,10 @@ class AssetContext(BaseModel):
                 "location": "Data Center 1",
                 "ip_address": "10.0.0.50",
                 "vulnerability_count": 5,
-                "critical_vulnerabilities": 1
+                "critical_vulnerabilities": 1,
             }
-    })
+        }
+    )
 
 
 class UserContext(BaseModel):
@@ -187,22 +179,14 @@ class UserContext(BaseModel):
 
     # Status
     is_active: bool = Field(default=True, description="Whether user is active")
-    is_privileged: bool = Field(
-        default=False, description="Whether user has privileged access"
-    )
+    is_privileged: bool = Field(default=False, description="Whether user has privileged access")
 
     # Activity
-    last_login: Optional[datetime] = Field(
-        default=None, description="Last successful login"
-    )
-    failed_login_attempts: int = Field(
-        default=0, ge=0, description="Recent failed login attempts"
-    )
+    last_login: Optional[datetime] = Field(default=None, description="Last successful login")
+    failed_login_attempts: int = Field(default=0, ge=0, description="Recent failed login attempts")
 
     # Security
-    risk_score: float = Field(
-        default=0.0, ge=0.0, le=100.0, description="User risk score"
-    )
+    risk_score: float = Field(default=0.0, ge=0.0, le=100.0, description="User risk score")
     security_groups: list[str] = Field(
         default_factory=list, description="Security group memberships"
     )
@@ -211,12 +195,11 @@ class UserContext(BaseModel):
     last_updated: datetime = Field(
         default_factory=datetime.utcnow, description="When context was retrieved"
     )
-    metadata: dict[str, Any] = Field(
-        default_factory=dict, description="Additional metadata"
-    )
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "user_id": "user@example.com",
                 "username": "jsmith",
                 "email": "john.smith@example.com",
@@ -226,9 +209,10 @@ class UserContext(BaseModel):
                 "is_privileged": False,
                 "last_login": "2025-01-05T09:00:00Z",
                 "failed_login_attempts": 0,
-                "risk_score": 10.0
+                "risk_score": 10.0,
             }
-    })
+        }
+    )
 
 
 class EnrichedContext(BaseModel):
@@ -255,12 +239,8 @@ class EnrichedContext(BaseModel):
     target_network: Optional[NetworkContext] = Field(
         default=None, description="Target network context"
     )
-    asset: Optional[AssetContext] = Field(
-        default=None, description="Asset context"
-    )
-    user: Optional[UserContext] = Field(
-        default=None, description="User context"
-    )
+    asset: Optional[AssetContext] = Field(default=None, description="Asset context")
+    user: Optional[UserContext] = Field(default=None, description="User context")
 
     # Metadata
     enrichment_time: datetime = Field(
@@ -269,31 +249,31 @@ class EnrichedContext(BaseModel):
     enrichment_sources: list[str] = Field(
         default_factory=list, description="Sources used for enrichment"
     )
-    cache_hit: bool = Field(
-        default=False, description="Whether context was retrieved from cache"
-    )
+    cache_hit: bool = Field(default=False, description="Whether context was retrieved from cache")
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "alert_id": "ALT-2025-001",
                 "source_network": {
                     "ip_address": "45.33.32.156",
                     "is_internal": False,
                     "is_known_malicious": True,
-                    "reputation_score": 15.0
+                    "reputation_score": 15.0,
                 },
                 "target_network": {
                     "ip_address": "10.0.0.50",
                     "is_internal": True,
                     "is_known_malicious": False,
-                    "reputation_score": 80.0
+                    "reputation_score": 80.0,
                 },
                 "asset": {
                     "asset_id": "ASSET-001",
                     "asset_name": "WEB-SRV-01",
-                    "criticality": "high"
+                    "criticality": "high",
                 },
                 "enrichment_time": "2025-01-05T12:00:05Z",
-                "enrichment_sources": ["cmdb", "geoip", "threat_intel"]
+                "enrichment_sources": ["cmdb", "geoip", "threat_intel"],
             }
-    })
+        }
+    )

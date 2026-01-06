@@ -131,6 +131,7 @@ def map_field(raw_alert: dict, source_type: str, target_field: str) -> Any:
 # IOC Extraction Functions
 # =============================================================================
 
+
 def extract_iocs(raw_alert: dict) -> Dict[str, List[str]]:
     """
     Extract Indicators of Compromise (IOCs) from alert.
@@ -153,18 +154,18 @@ def extract_iocs(raw_alert: dict) -> Dict[str, List[str]]:
     alert_text = str(raw_alert)
 
     # Extract IP addresses
-    ip_pattern = r'\b(?:\d{1,3}\.){3}\d{1,3}\b'
+    ip_pattern = r"\b(?:\d{1,3}\.){3}\d{1,3}\b"
     ip_matches = re.findall(ip_pattern, alert_text)
     for ip in ip_matches:
         # Validate IP range
-        parts = ip.split('.')
+        parts = ip.split(".")
         if all(0 <= int(part) <= 255 for part in parts):
             iocs["ip_addresses"].append(ip)
 
     # Extract file hashes (MD5, SHA1, SHA256)
-    md5_pattern = r'\b[a-fA-F0-9]{32}\b'
-    sha1_pattern = r'\b[a-fA-F0-9]{40}\b'
-    sha256_pattern = r'\b[a-fA-F0-9]{64}\b'
+    md5_pattern = r"\b[a-fA-F0-9]{32}\b"
+    sha1_pattern = r"\b[a-fA-F0-9]{40}\b"
+    sha256_pattern = r"\b[a-fA-F0-9]{64}\b"
 
     if re.search(md5_pattern, alert_text):
         iocs["file_hashes"].extend(re.findall(md5_pattern, alert_text))
@@ -183,6 +184,7 @@ def extract_iocs(raw_alert: dict) -> Dict[str, List[str]]:
 # =============================================================================
 # Alert Deduplication
 # =============================================================================
+
 
 def generate_alert_fingerprint(alert: dict) -> str:
     """
@@ -242,6 +244,7 @@ def is_duplicate_alert(alert: dict) -> bool:
 # =============================================================================
 # Alert Normalization
 # =============================================================================
+
 
 def normalize_alert(raw_alert: dict, source_type: str = "default") -> SecurityAlert:
     """
@@ -323,12 +326,12 @@ def normalize_alert(raw_alert: dict, source_type: str = "default") -> SecurityAl
         # Validate IP addresses
         if source_ip:
             # Basic IP validation
-            ip_pattern = r'^(?:\d{1,3}\.){3}\d{1,3}$'
+            ip_pattern = r"^(?:\d{1,3}\.){3}\d{1,3}$"
             if not re.match(ip_pattern, str(source_ip)):
                 source_ip = None
 
         if target_ip:
-            if not re.match(r'^(?:\d{1,3}\.){3}\d{1,3}$', str(target_ip)):
+            if not re.match(r"^(?:\d{1,3}\.){3}\d{1,3}$", str(target_ip)):
                 target_ip = None
 
         # Validate file hash format
@@ -376,6 +379,7 @@ def normalize_alert(raw_alert: dict, source_type: str = "default") -> SecurityAl
 # =============================================================================
 # FastAPI Application
 # =============================================================================
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -447,8 +451,10 @@ app.add_middleware(
 # Background Task: Message Consumer
 # =============================================================================
 
+
 async def consume_alerts():
     """Consume raw alerts from queue and normalize them."""
+
     async def process_message(message: dict):
         try:
             payload = message.get("payload", {})
@@ -512,6 +518,7 @@ async def consume_alerts():
 # =============================================================================
 # API Endpoints
 # =============================================================================
+
 
 @app.get("/health", tags=["Health"])
 async def health_check():

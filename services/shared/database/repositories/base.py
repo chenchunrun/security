@@ -54,9 +54,7 @@ class BaseRepository(Generic[ModelType]):
         self.model = model
         self.session = session
 
-    async def create(
-        self, obj_in: CreateSchemaType
-    ) -> ModelType:
+    async def create(self, obj_in: CreateSchemaType) -> ModelType:
         """
         Create a new record.
 
@@ -143,12 +141,12 @@ class BaseRepository(Generic[ModelType]):
         if not db_obj:
             return None
 
-        update_data = obj_in.model_dump(exclude_unset=True) if isinstance(obj_in, BaseModel) else obj_in
+        update_data = (
+            obj_in.model_dump(exclude_unset=True) if isinstance(obj_in, BaseModel) else obj_in
+        )
 
         await self.session.execute(
-            update(self.model)
-            .where(getattr(self.model, "id") == id)
-            .values(**update_data)
+            update(self.model).where(getattr(self.model, "id") == id).values(**update_data)
         )
 
         await self.session.flush()
@@ -175,9 +173,7 @@ class BaseRepository(Generic[ModelType]):
         if not db_obj:
             return False
 
-        await self.session.execute(
-            delete(self.model).where(getattr(self.model, "id") == id)
-        )
+        await self.session.execute(delete(self.model).where(getattr(self.model, "id") == id))
 
         await self.session.flush()
 
@@ -220,15 +216,11 @@ class BaseRepository(Generic[ModelType]):
             True if exists, False otherwise
         """
         result = await self.session.execute(
-            select(func.count(getattr(self.model, "id"))).where(
-                getattr(self.model, "id") == id
-            )
+            select(func.count(getattr(self.model, "id"))).where(getattr(self.model, "id") == id)
         )
         return result.scalar() > 0
 
-    async def bulk_create(
-        self, objects: List[CreateSchemaType]
-    ) -> List[ModelType]:
+    async def bulk_create(self, objects: List[CreateSchemaType]) -> List[ModelType]:
         """
         Bulk create records.
 
@@ -240,9 +232,7 @@ class BaseRepository(Generic[ModelType]):
         """
         db_objects = []
         for obj_in in objects:
-            obj_dict = (
-                obj_in.model_dump() if isinstance(obj_in, BaseModel) else obj_in
-            )
+            obj_dict = obj_in.model_dump() if isinstance(obj_in, BaseModel) else obj_in
             db_obj = self.model(**obj_dict)
             db_objects.append(db_obj)
 

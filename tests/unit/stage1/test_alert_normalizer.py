@@ -48,13 +48,13 @@ class TestAlertNormalizer:
             "alert_id": "RAW-001",
             "timestamp": "2026-01-06T10:30:00Z",
             "type": "malware",  # Non-standard field name
-            "level": "high",    # Non-standard field name
+            "level": "high",  # Non-standard field name
             "msg": "Malware detected",  # Non-standard field
             "src_ip": "192.168.1.100",
             "dst_ip": "10.0.0.50",
             "hash": "abc123",
             "host": "server-001",
-            "user": "admin"
+            "user": "admin",
         }
 
     @pytest.fixture
@@ -71,7 +71,7 @@ class TestAlertNormalizer:
             "target_ip": "10.0.0.50",
             "file_hash": "abc123",
             "asset_id": "server-001",
-            "user_id": "admin"
+            "user_id": "admin",
         }
 
     def test_health_check(self, client):
@@ -85,7 +85,7 @@ class TestAlertNormalizer:
 
     def test_normalize_alert_success(self, client, raw_alert, mock_publisher):
         """Test successful alert normalization."""
-        with patch('services.alert_normalizer.main.publisher', mock_publisher):
+        with patch("services.alert_normalizer.main.publisher", mock_publisher):
             response = client.post("/api/v1/normalize", json=raw_alert)
 
             assert response.status_code == 200
@@ -109,7 +109,7 @@ class TestAlertNormalizer:
             "dst_ip": "target_ip",
             "hash": "file_hash",
             "host": "asset_id",
-            "user": "user_id"
+            "user": "user_id",
         }
 
         response = client.post("/api/v1/normalize", json=raw_alert)
@@ -132,7 +132,7 @@ class TestAlertNormalizer:
             "source_ip": "192.168.1.100",
             "file_hash": "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
             "url": "http://malicious.com/payload.exe",
-            "domain": "malicious.com"
+            "domain": "malicious.com",
         }
 
         response = client.post("/api/v1/normalize", json=alert_with_iocs)
@@ -148,14 +148,16 @@ class TestAlertNormalizer:
     def test_deduplication_logic(self, client, raw_alert, mock_db):
         """Test alert deduplication."""
         # Mock database to return existing similar alert
-        mock_db.execute_query.return_value = [{
-            "alert_id": "EXISTING-001",
-            "source_ip": raw_alert["src_ip"],
-            "file_hash": raw_alert["hash"],
-            "timestamp": datetime.utcnow().isoformat()
-        }]
+        mock_db.execute_query.return_value = [
+            {
+                "alert_id": "EXISTING-001",
+                "source_ip": raw_alert["src_ip"],
+                "file_hash": raw_alert["hash"],
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+        ]
 
-        with patch('services.alert_normalizer.main.db_manager', mock_db):
+        with patch("services.alert_normalizer.main.db_manager", mock_db):
             response = client.post("/api/v1/normalize", json=raw_alert)
 
             # Should detect duplicate
@@ -172,7 +174,7 @@ class TestAlertNormalizer:
                 "type": "malware",
                 "level": "high",
                 "msg": f"Alert {i}",
-                "src_ip": "192.168.1.100"
+                "src_ip": "192.168.1.100",
             }
             for i in range(10)
         ]
@@ -203,42 +205,51 @@ class TestFieldMapping:
         """Test client."""
         return TestClient(app)
 
-    @pytest.mark.parametrize("source_format,expected_mapping", [
-        # EDR format
-        ({
-            "detection_id": "EDR-001",
-            "threat": "malware",
-            "severity_code": 3,
-            "description": "Threat detected",
-            "source_address": "192.168.1.100",
-            "file_sha256": "abc123"
-        }, {
-            "alert_id": "EDR-001",
-            "alert_type": "malware",
-            "severity": "high",
-            "title": "Threat detected",
-            "source_ip": "192.168.1.100",
-            "file_hash": "abc123"
-        }),
-        # SIEM format
-        ({
-            "event_id": "SIEM-001",
-            "event_type": "brute_force",
-            "risk_score": 85,
-            "message": "Multiple failed logins",
-            "src": "10.0.0.1",
-            "dst": "192.168.1.100",
-            "username": "admin"
-        }, {
-            "alert_id": "SIEM-001",
-            "alert_type": "brute_force",
-            "severity": "high",
-            "title": "Multiple failed logins",
-            "source_ip": "10.0.0.1",
-            "target_ip": "192.168.1.100",
-            "user_id": "admin"
-        }),
-    ])
+    @pytest.mark.parametrize(
+        "source_format,expected_mapping",
+        [
+            # EDR format
+            (
+                {
+                    "detection_id": "EDR-001",
+                    "threat": "malware",
+                    "severity_code": 3,
+                    "description": "Threat detected",
+                    "source_address": "192.168.1.100",
+                    "file_sha256": "abc123",
+                },
+                {
+                    "alert_id": "EDR-001",
+                    "alert_type": "malware",
+                    "severity": "high",
+                    "title": "Threat detected",
+                    "source_ip": "192.168.1.100",
+                    "file_hash": "abc123",
+                },
+            ),
+            # SIEM format
+            (
+                {
+                    "event_id": "SIEM-001",
+                    "event_type": "brute_force",
+                    "risk_score": 85,
+                    "message": "Multiple failed logins",
+                    "src": "10.0.0.1",
+                    "dst": "192.168.1.100",
+                    "username": "admin",
+                },
+                {
+                    "alert_id": "SIEM-001",
+                    "alert_type": "brute_force",
+                    "severity": "high",
+                    "title": "Multiple failed logins",
+                    "source_ip": "10.0.0.1",
+                    "target_ip": "192.168.1.100",
+                    "user_id": "admin",
+                },
+            ),
+        ],
+    )
     def test_format_normalization(self, client, source_format, expected_mapping):
         """Test normalization of different source formats."""
         response = client.post("/api/v1/normalize", json=source_format)
@@ -264,7 +275,7 @@ class TestIOCExtraction:
         alert = {
             "alert_id": "IP-IOC-001",
             "description": "Attack from 192.168.1.100 and 10.0.0.1 to 172.16.0.1",
-            "logs": "Connection from 192.168.1.100 to 172.16.0.1"
+            "logs": "Connection from 192.168.1.100 to 172.16.0.1",
         }
 
         response = client.post("/api/v1/extract-iocs", json=alert)
@@ -280,7 +291,7 @@ class TestIOCExtraction:
         alert = {
             "alert_id": "HASH-IOC-001",
             "description": "Malware with hash abc123def456",
-            "process_image": "C:\Windows\System32\malware.exe"
+            "process_image": "C:\Windows\System32\malware.exe",
         }
 
         response = client.post("/api/v1/extract-iocs", json=alert)
@@ -295,7 +306,7 @@ class TestIOCExtraction:
         alert = {
             "alert_id": "URL-IOC-001",
             "description": "User clicked on http://phishing.com/steal",
-            "url": "http://phishing.com/steal"
+            "url": "http://phishing.com/steal",
         }
 
         response = client.post("/api/v1/extract-iocs", json=alert)
@@ -311,7 +322,7 @@ class TestIOCExtraction:
         alert = {
             "alert_id": "DOMAIN-IOC-001",
             "description": "Connection to malicious.com",
-            "dns_query": "malicious.com"
+            "dns_query": "malicious.com",
         }
 
         response = client.post("/api/v1/extract-iocs", json=alert)

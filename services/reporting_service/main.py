@@ -90,7 +90,7 @@ app = FastAPI(
     title="Reporting Service",
     description="Generates various security reports and summaries",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -124,27 +124,27 @@ async def generate_daily_summary(report_id: str, date: datetime):
                 "low_alerts": 80,
                 "triaged_alerts": 120,
                 "automation_executed": 15,
-                "time_saved_hours": 7.5
+                "time_saved_hours": 7.5,
             },
             "top_alerts": [
                 {
                     "alert_id": "ALT-001",
                     "type": "malware",
                     "severity": "critical",
-                    "description": "Ransomware detected on server-001"
+                    "description": "Ransomware detected on server-001",
                 },
                 {
                     "alert_id": "ALT-002",
                     "type": "phishing",
                     "severity": "high",
-                    "description": "Spear phishing campaign targeting finance"
-                }
+                    "description": "Spear phishing campaign targeting finance",
+                },
             ],
             "recommendations": [
                 "Update firewall rules for known malicious IPs",
                 "Conduct security awareness training for phishing",
-                "Review EDR policies for endpoint protection"
-            ]
+                "Review EDR policies for endpoint protection",
+            ],
         }
 
         report_cache[report_id]["status"] = ReportStatus.COMPLETED
@@ -176,67 +176,61 @@ async def generate_incident_report(report_id: str, alert_id: str):
                 "first_seen": "2025-01-05T10:00:00Z",
                 "last_seen": "2025-01-05T12:00:00Z",
                 "affected_assets": ["server-001", "workstation-005"],
-                "description": "Ransomware infection detected on critical server"
+                "description": "Ransomware infection detected on critical server",
             },
             "timeline": [
-                {
-                    "timestamp": "2025-01-05T10:00:00Z",
-                    "event": "Alert triggered by EDR"
-                },
+                {"timestamp": "2025-01-05T10:00:00Z", "event": "Alert triggered by EDR"},
                 {
                     "timestamp": "2025-01-05T10:01:00Z",
-                    "event": "AI Triage completed - Risk: Critical"
+                    "event": "AI Triage completed - Risk: Critical",
                 },
                 {
                     "timestamp": "2025-01-05T10:02:00Z",
-                    "event": "Automation playbook executed - Isolated host"
+                    "event": "Automation playbook executed - Isolated host",
                 },
-                {
-                    "timestamp": "2025-01-05T10:05:00Z",
-                    "event": "Security analyst notified"
-                },
+                {"timestamp": "2025-01-05T10:05:00Z", "event": "Security analyst notified"},
                 {
                     "timestamp": "2025-01-05T12:00:00Z",
-                    "event": "Incident contained - System restored"
-                }
+                    "event": "Incident contained - System restored",
+                },
             ],
             "triage_details": {
                 "risk_level": "critical",
                 "confidence": 0.95,
                 "triaged_by": "ai-agent",
                 "triaged_at": "2025-01-05T10:01:00Z",
-                "reasoning": "High confidence ransomware detection based on file behavior and network activity"
+                "reasoning": "High confidence ransomware detection based on file behavior and network activity",
             },
             "actions_taken": [
                 {
                     "action": "isolate_host",
                     "executed_at": "2025-01-05T10:02:00Z",
                     "status": "success",
-                    "result": "Host isolated from network"
+                    "result": "Host isolated from network",
                 },
                 {
                     "action": "quarantine_file",
                     "executed_at": "2025-01-05T10:03:00Z",
                     "status": "success",
-                    "result": "Malicious file quarantined"
+                    "result": "Malicious file quarantined",
                 },
                 {
                     "action": "create_ticket",
                     "executed_at": "2025-01-05T10:04:00Z",
                     "status": "success",
-                    "result": "Incident ticket INC-12345 created"
-                }
+                    "result": "Incident ticket INC-12345 created",
+                },
             ],
             "lessons_learned": [
                 "Quick isolation prevented lateral movement",
                 "AI triage reduced response time by 80%",
-                "Automation playbook executed successfully"
+                "Automation playbook executed successfully",
             ],
             "recommendations": [
                 "Review backup and recovery procedures",
                 "Conduct forensic analysis on isolated systems",
-                "Update security policies based on incident findings"
-            ]
+                "Update security policies based on incident findings",
+            ],
         }
 
         report_cache[report_id]["status"] = ReportStatus.COMPLETED
@@ -288,13 +282,14 @@ def format_report_html(report_data: Dict[str, Any]) -> str:
 
 # API Endpoints
 
+
 @app.post("/api/v1/reports/generate", response_model=Dict[str, Any])
 async def generate_report(
     report_type: ReportType,
     background_tasks: BackgroundTasks,
     date: Optional[str] = None,
     alert_id: Optional[str] = None,
-    parameters: Optional[Dict[str, Any]] = None
+    parameters: Optional[Dict[str, Any]] = None,
 ):
     """
     Generate a report asynchronously.
@@ -313,7 +308,7 @@ async def generate_report(
             "report_id": report_id,
             "report_type": report_type,
             "status": ReportStatus.PENDING,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # Schedule report generation
@@ -324,8 +319,7 @@ async def generate_report(
         elif report_type == ReportType.INCIDENT_REPORT:
             if not alert_id:
                 raise HTTPException(
-                    status_code=400,
-                    detail="alert_id is required for incident reports"
+                    status_code=400, detail="alert_id is required for incident reports"
                 )
             background_tasks.add_task(generate_incident_report, report_id, alert_id)
 
@@ -339,22 +333,16 @@ async def generate_report(
             "data": {
                 "report_id": report_id,
                 "report_type": report_type.value,
-                "status": report_cache[report_id]["status"].value
+                "status": report_cache[report_id]["status"].value,
             },
-            "meta": {
-                "timestamp": datetime.utcnow().isoformat(),
-                "request_id": str(uuid.uuid4())
-            }
+            "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
         }
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to generate report: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to generate report: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to generate report: {str(e)}")
 
 
 @app.get("/api/v1/reports/{report_id}", response_model=Dict[str, Any])
@@ -362,46 +350,30 @@ async def get_report(report_id: str):
     """Get report status and data."""
     report = report_cache.get(report_id)
     if not report:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Report not found: {report_id}"
-        )
+        raise HTTPException(status_code=404, detail=f"Report not found: {report_id}")
 
     return {
         "success": True,
         "data": report,
-        "meta": {
-            "timestamp": datetime.utcnow().isoformat(),
-            "request_id": str(uuid.uuid4())
-        }
+        "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
     }
 
 
 @app.get("/api/v1/reports/{report_id}/download")
-async def download_report(
-    report_id: str,
-    format: ReportFormat = ReportFormat.HTML
-):
+async def download_report(report_id: str, format: ReportFormat = ReportFormat.HTML):
     """Download generated report in specified format."""
     report = report_cache.get(report_id)
     if not report:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Report not found: {report_id}"
-        )
+        raise HTTPException(status_code=404, detail=f"Report not found: {report_id}")
 
     if report["status"] != ReportStatus.COMPLETED:
         raise HTTPException(
-            status_code=400,
-            detail=f"Report not ready. Current status: {report['status']}"
+            status_code=400, detail=f"Report not ready. Current status: {report['status']}"
         )
 
     report_data = report.get("data")
     if not report_data:
-        raise HTTPException(
-            status_code=404,
-            detail="Report data not available"
-        )
+        raise HTTPException(status_code=404, detail="Report data not available")
 
     try:
         if format == ReportFormat.HTML:
@@ -412,21 +384,21 @@ async def download_report(
                 path=None,  # We're returning content directly
                 filename=f"{report_id}.html",
                 media_type="text/html",
-                content=html_content.encode()
+                content=html_content.encode(),
             )
 
         elif format == ReportFormat.JSON:
             from fastapi.responses import JSONResponse
+
             return JSONResponse(
                 content=report_data,
-                headers={
-                    "Content-Disposition": f"attachment; filename={report_id}.json"
-                }
+                headers={"Content-Disposition": f"attachment; filename={report_id}.json"},
             )
 
         elif format == ReportFormat.CSV:
             # Simple CSV export
             import csv
+
             output = io.StringIO()
             writer = csv.writer(output)
 
@@ -442,30 +414,23 @@ async def download_report(
                 path=None,
                 filename=f"{report_id}.csv",
                 media_type="text/csv",
-                content=csv_content.encode()
+                content=csv_content.encode(),
             )
 
         elif format == ReportFormat.PDF:
             # TODO: Implement PDF generation (using reportlab or weasyprint)
-            raise HTTPException(
-                status_code=501,
-                detail="PDF format not yet implemented"
-            )
+            raise HTTPException(status_code=501, detail="PDF format not yet implemented")
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to download report: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to download report: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to download report: {str(e)}")
 
 
 @app.get("/api/v1/reports", response_model=Dict[str, Any])
 async def list_reports(
-    status: Optional[ReportStatus] = None,
-    report_type: Optional[ReportType] = None
+    status: Optional[ReportStatus] = None, report_type: Optional[ReportType] = None
 ):
     """List all reports."""
     reports = list(report_cache.values())
@@ -478,14 +443,8 @@ async def list_reports(
 
     return {
         "success": True,
-        "data": {
-            "reports": reports,
-            "total": len(reports)
-        },
-        "meta": {
-            "timestamp": datetime.utcnow().isoformat(),
-            "request_id": str(uuid.uuid4())
-        }
+        "data": {"reports": reports, "total": len(reports)},
+        "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
     }
 
 
@@ -493,20 +452,14 @@ async def list_reports(
 async def delete_report(report_id: str):
     """Delete a report."""
     if report_id not in report_cache:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Report not found: {report_id}"
-        )
+        raise HTTPException(status_code=404, detail=f"Report not found: {report_id}")
 
     del report_cache[report_id]
 
     return {
         "success": True,
         "message": "Report deleted",
-        "meta": {
-            "timestamp": datetime.utcnow().isoformat(),
-            "request_id": str(uuid.uuid4())
-        }
+        "meta": {"timestamp": datetime.utcnow().isoformat(), "request_id": str(uuid.uuid4())},
     }
 
 
@@ -519,8 +472,10 @@ async def health_check():
         "timestamp": datetime.utcnow().isoformat(),
         "reports": {
             "total": len(report_cache),
-            "completed": len([r for r in report_cache.values() if r["status"] == ReportStatus.COMPLETED])
-        }
+            "completed": len(
+                [r for r in report_cache.values() if r["status"] == ReportStatus.COMPLETED]
+            ),
+        },
     }
 
 

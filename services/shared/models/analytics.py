@@ -50,57 +50,45 @@ class AlertMetric(BaseModel):
     by_severity: Dict[str, int] = Field(
         default_factory=dict, description="Alerts by severity level"
     )
-    by_type: Dict[str, int] = Field(
-        default_factory=dict, description="Alerts by alert type"
-    )
+    by_type: Dict[str, int] = Field(default_factory=dict, description="Alerts by alert type")
     triaged: int = Field(..., ge=0, description="Number of triaged alerts")
     auto_closed: int = Field(..., ge=0, description="Auto-closed alerts")
     human_reviewed: int = Field(..., ge=0, description="Human-reviewed alerts")
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "total_alerts": 1500,
                 "by_severity": {"critical": 10, "high": 50, "medium": 200, "low": 800, "info": 440},
                 "by_type": {"malware": 300, "phishing": 200, "intrusion": 100},
                 "triaged": 1200,
                 "auto_closed": 900,
-                "human_reviewed": 300
+                "human_reviewed": 300,
             }
-    })
+        }
+    )
 
 
 class TriageMetric(BaseModel):
     """Triage performance metrics."""
 
-    avg_triage_time_seconds: float = Field(
-        ...,
-        ge=0,
-        description="Average triage time in seconds"
-    )
+    avg_triage_time_seconds: float = Field(..., ge=0, description="Average triage time in seconds")
     triaged_by_ai: int = Field(..., ge=0, description="Alerts triaged by AI")
     triaged_by_human: int = Field(..., ge=0, description="Alerts triaged by human")
-    accuracy_score: float = Field(
-        ...,
-        ge=0.0,
-        le=1.0,
-        description="Triage accuracy score (0-1)"
-    )
-    false_positive_rate: float = Field(
-        ...,
-        ge=0.0,
-        le=1.0,
-        description="False positive rate (0-1)"
-    )
+    accuracy_score: float = Field(..., ge=0.0, le=1.0, description="Triage accuracy score (0-1)")
+    false_positive_rate: float = Field(..., ge=0.0, le=1.0, description="False positive rate (0-1)")
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "avg_triage_time_seconds": 45.5,
                 "triaged_by_ai": 1000,
                 "triaged_by_human": 200,
                 "accuracy_score": 0.85,
-                "false_positive_rate": 0.12
+                "false_positive_rate": 0.12,
             }
-    })
+        }
+    )
 
 
 class AutomationMetric(BaseModel):
@@ -108,32 +96,21 @@ class AutomationMetric(BaseModel):
 
     playbooks_executed: int = Field(..., ge=0, description="Number of playbooks executed")
     actions_executed: int = Field(..., ge=0, description="Number of actions executed")
-    success_rate: float = Field(
-        ...,
-        ge=0.0,
-        le=1.0,
-        description="Automation success rate (0-1)"
-    )
-    avg_execution_time_seconds: float = Field(
-        ...,
-        ge=0,
-        description="Average execution time"
-    )
-    time_saved_hours: float = Field(
-        ...,
-        ge=0,
-        description="Estimated manual hours saved"
-    )
+    success_rate: float = Field(..., ge=0.0, le=1.0, description="Automation success rate (0-1)")
+    avg_execution_time_seconds: float = Field(..., ge=0, description="Average execution time")
+    time_saved_hours: float = Field(..., ge=0, description="Estimated manual hours saved")
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "playbooks_executed": 150,
                 "actions_executed": 450,
                 "success_rate": 0.92,
                 "avg_execution_time_seconds": 120.5,
-                "time_saved_hours": 225.0
+                "time_saved_hours": 225.0,
             }
-    })
+        }
+    )
 
 
 class TrendData(BaseModel):
@@ -141,50 +118,37 @@ class TrendData(BaseModel):
 
     timestamp: datetime = Field(..., description="Data point timestamp")
     value: float = Field(..., description="Metric value")
-    label: Optional[str] = Field(
-        default=None,
-        description="Optional label for data point"
-    )
+    label: Optional[str] = Field(default=None, description="Optional label for data point")
 
 
 class AnalyticsQuery(BaseModel):
     """Analytics query parameters."""
 
     metric_type: str = Field(..., description="Type of metric to query")
-    time_range: TimeRange = Field(
-        default=TimeRange.LAST_24H,
-        description="Time range for query"
-    )
+    time_range: TimeRange = Field(default=TimeRange.LAST_24H, description="Time range for query")
     start_date: Optional[datetime] = Field(
-        default=None,
-        description="Custom start date (if time_range is CUSTOM)"
+        default=None, description="Custom start date (if time_range is CUSTOM)"
     )
     end_date: Optional[datetime] = Field(
-        default=None,
-        description="Custom end date (if time_range is CUSTOM)"
+        default=None, description="Custom end date (if time_range is CUSTOM)"
     )
-    filters: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Optional filters for query"
-    )
-    group_by: Optional[str] = Field(
-        default=None,
-        description="Field to group results by"
-    )
+    filters: Dict[str, Any] = Field(default_factory=dict, description="Optional filters for query")
+    group_by: Optional[str] = Field(default=None, description="Field to group results by")
     aggregation: Optional[str] = Field(
-        default="sum",
-        description="Aggregation function (sum, avg, count, etc.)"
+        default="sum", description="Aggregation function (sum, avg, count, etc.)"
     )
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "metric_type": "alert_volume",
                 "time_range": "last_7d",
                 "filters": {"severity": "high"},
                 "group_by": "alert_type",
-                "aggregation": "count"
+                "aggregation": "count",
             }
-    })
+        }
+    )
 
 
 class AnalyticsResponse(BaseModel):
@@ -192,35 +156,23 @@ class AnalyticsResponse(BaseModel):
 
     metric_type: str = Field(..., description="Type of metric returned")
     time_range: TimeRange = Field(..., description="Time range of data")
-    data: List[Dict[str, Any]] = Field(
-        ...,
-        description="Metric data points"
-    )
-    summary: Dict[str, Any] = Field(
-        ...,
-        description="Summary statistics (avg, min, max, etc.)"
-    )
-    metadata: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Additional metadata"
-    )
+    data: List[Dict[str, Any]] = Field(..., description="Metric data points")
+    summary: Dict[str, Any] = Field(..., description="Summary statistics (avg, min, max, etc.)")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "metric_type": "alert_volume",
                 "time_range": "last_24h",
                 "data": [
                     {"timestamp": "2025-01-05T00:00:00Z", "value": 100},
-                    {"timestamp": "2025-01-05T01:00:00Z", "value": 120}
+                    {"timestamp": "2025-01-05T01:00:00Z", "value": 120},
                 ],
-                "summary": {
-                    "total": 2500,
-                    "average": 104.2,
-                    "min": 80,
-                    "max": 150
-                }
+                "summary": {"total": 2500, "average": 104.2, "min": 80, "max": 150},
             }
-    })
+        }
+    )
 
 
 class DashboardData(BaseModel):
@@ -230,20 +182,18 @@ class DashboardData(BaseModel):
     triage_metrics: TriageMetric
     automation_metrics: AutomationMetric
     trends: Dict[str, List[TrendData]] = Field(
-        default_factory=dict,
-        description="Trend data for various metrics"
+        default_factory=dict, description="Trend data for various metrics"
     )
     top_alerts: List[Dict[str, Any]] = Field(
-        default_factory=list,
-        description="Top alerts by various criteria"
+        default_factory=list, description="Top alerts by various criteria"
     )
     generated_at: datetime = Field(
-        default_factory=datetime.utcnow,
-        description="When dashboard was generated"
+        default_factory=datetime.utcnow, description="When dashboard was generated"
     )
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "alert_metrics": {},
                 "triage_metrics": {},
                 "automation_metrics": {},
@@ -252,9 +202,8 @@ class DashboardData(BaseModel):
                         {"timestamp": "2025-01-05T00:00:00Z", "value": 100, "label": "00:00"}
                     ]
                 },
-                "top_alerts": [
-                    {"alert_id": "ALT-001", "count": 50, "type": "malware"}
-                ],
-                "generated_at": "2025-01-05T12:00:00Z"
+                "top_alerts": [{"alert_id": "ALT-001", "count": 50, "type": "malware"}],
+                "generated_at": "2025-01-05T12:00:00Z",
             }
-    })
+        }
+    )

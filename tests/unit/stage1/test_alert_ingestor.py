@@ -55,7 +55,7 @@ class TestAlertIngestor:
             "target_ip": "10.0.0.50",
             "file_hash": "abc123def456",
             "asset_id": "SERVER-001",
-            "user_id": "admin"
+            "user_id": "admin",
         }
 
     def test_health_check(self, client):
@@ -69,7 +69,7 @@ class TestAlertIngestor:
 
     def test_ingest_valid_alert(self, client, valid_alert_data, mock_publisher):
         """Test ingesting a valid alert."""
-        with patch('services.alert_ingestor.main.publisher', mock_publisher):
+        with patch("services.alert_ingestor.main.publisher", mock_publisher):
             response = client.post("/api/v1/alerts", json=valid_alert_data)
 
             assert response.status_code == 201
@@ -118,12 +118,9 @@ class TestAlertIngestor:
 
     def test_batch_ingest_alerts(self, client, valid_alert_data):
         """Test batch alert ingestion."""
-        alerts = [
-            {**valid_alert_data, "alert_id": f"ALT-{i:03d}"}
-            for i in range(10)
-        ]
+        alerts = [{**valid_alert_data, "alert_id": f"ALT-{i:03d}"} for i in range(10)]
 
-        with patch('services.alert_ingestor.main.publisher', Mock()) as mock_publisher:
+        with patch("services.alert_ingestor.main.publisher", Mock()) as mock_publisher:
             response = client.post("/api/v1/alerts/batch", json={"alerts": alerts})
 
             assert response.status_code == 201
@@ -132,7 +129,7 @@ class TestAlertIngestor:
 
     def test_ingest_alert_duplicate_detection(self, client, valid_alert_data, mock_db):
         """Test duplicate alert detection."""
-        with patch('services.alert_ingestor.main.db_manager', mock_db):
+        with patch("services.alert_ingestor.main.db_manager", mock_db):
             # Mock database query to return existing alert
             mock_db.execute_query.return_value = [valid_alert_data]
 
@@ -147,17 +144,10 @@ class TestAlertIngestor:
     def test_webhook_ingestion(self, client, valid_alert_data):
         """Test webhook alert ingestion."""
         # Add webhook-specific headers
-        headers = {
-            "X-Webhook-Source": "edr-system",
-            "X-Webhook-Signature": "test-signature"
-        }
+        headers = {"X-Webhook-Source": "edr-system", "X-Webhook-Signature": "test-signature"}
 
-        with patch('services.alert_ingestor.main.publisher', Mock()):
-            response = client.post(
-                "/api/v1/webhooks/edr",
-                json=valid_alert_data,
-                headers=headers
-            )
+        with patch("services.alert_ingestor.main.publisher", Mock()):
+            response = client.post("/api/v1/webhooks/edr", json=valid_alert_data, headers=headers)
 
             assert response.status_code in [200, 201]
 
@@ -183,19 +173,17 @@ class TestRateLimiting:
     def test_rate_limit_enforcement(self, client, valid_alert_data):
         """Test that rate limiting is enforced."""
         # Mock rate limiter to allow only 5 requests per minute
-        with patch('services.alert_ingestor.main.check_rate_limit', return_value=False):
+        with patch("services.alert_ingestor.main.check_rate_limit", return_value=False):
             # First 5 should succeed
             for i in range(5):
                 response = client.post(
-                    "/api/v1/alerts",
-                    json={**valid_alert_data, "alert_id": f"ALT-{i:03d}"}
+                    "/api/v1/alerts", json={**valid_alert_data, "alert_id": f"ALT-{i:03d}"}
                 )
                 assert response.status_code == 201
 
             # 6th should be rate limited
             response = client.post(
-                "/api/v1/alerts",
-                json={**valid_alert_data, "alert_id": "ALT-006"}
+                "/api/v1/alerts", json={**valid_alert_data, "alert_id": "ALT-006"}
             )
             assert response.status_code == 429  # Too Many Requests
 
@@ -205,12 +193,12 @@ class TestRateLimiting:
         ips = ["192.168.1.1", "192.168.1.2"]
 
         for ip in ips:
-            with patch('services.alert_ingestor.main.check_rate_limit', return_value=True):
+            with patch("services.alert_ingestor.main.check_rate_limit", return_value=True):
                 for i in range(3):
                     response = client.post(
                         "/api/v1/alerts",
                         json={**valid_alert_data, "alert_id": f"ALT-{ip}-{i}"},
-                        headers={"X-Forwarded-For": ip}
+                        headers={"X-Forwarded-For": ip},
                     )
                     assert response.status_code == 201
 
@@ -224,21 +212,24 @@ class TestAlertValidation:
         """Test client for alert ingestor."""
         return TestClient(app)
 
-    @pytest.mark.parametrize("field,value,should_pass", [
-        ("severity", "critical", True),
-        ("severity", "high", True),
-        ("severity", "medium", True),
-        ("severity", "low", True),
-        ("severity", "info", True),
-        ("severity", "invalid", False),
-        ("alert_type", "malware", True),
-        ("alert_type", "phishing", True),
-        ("alert_type", "brute_force", True),
-        ("alert_type", "data_exfiltration", True),
-        ("alert_type", "intrusion", True),
-        ("alert_type", "ddos", True),
-        ("alert_type", "invalid", False),
-    ])
+    @pytest.mark.parametrize(
+        "field,value,should_pass",
+        [
+            ("severity", "critical", True),
+            ("severity", "high", True),
+            ("severity", "medium", True),
+            ("severity", "low", True),
+            ("severity", "info", True),
+            ("severity", "invalid", False),
+            ("alert_type", "malware", True),
+            ("alert_type", "phishing", True),
+            ("alert_type", "brute_force", True),
+            ("alert_type", "data_exfiltration", True),
+            ("alert_type", "intrusion", True),
+            ("alert_type", "ddos", True),
+            ("alert_type", "invalid", False),
+        ],
+    )
     def test_field_validation(self, client, valid_alert_data, field, value, should_pass):
         """Test field validation."""
         valid_alert_data[field] = value
@@ -251,13 +242,7 @@ class TestAlertValidation:
 
     def test_ip_address_validation(self, client, valid_alert_data):
         """Test IP address validation."""
-        valid_ips = [
-            "192.168.1.1",
-            "10.0.0.1",
-            "172.16.0.1",
-            "8.8.8.8",
-            "2001:4860:4860::8888"
-        ]
+        valid_ips = ["192.168.1.1", "10.0.0.1", "172.16.0.1", "8.8.8.8", "2001:4860:4860::8888"]
 
         for ip in valid_ips:
             valid_alert_data["source_ip"] = ip
@@ -267,7 +252,9 @@ class TestAlertValidation:
     def test_file_hash_validation(self, client, valid_alert_data):
         """Test file hash validation."""
         # Valid MD5
-        valid_alert_data["file_hash"] = "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"
+        valid_alert_data[
+            "file_hash"
+        ] = "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"
         response = client.post("/api/v1/alerts", json=valid_alert_data)
         assert response.status_code == 201
 

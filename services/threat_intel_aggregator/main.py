@@ -59,6 +59,7 @@ CACHE_TTL_SECONDS = 86400  # 24 hours
 # Threat Intel Sources Configuration
 # =============================================================================
 
+
 class ThreatIntelSource:
     """Base class for threat intelligence sources."""
 
@@ -346,7 +347,10 @@ def init_threat_sources():
 # Threat Intelligence Query Functions
 # =============================================================================
 
-async def query_threat_intel(ip: str = None, file_hash: str = None, url: str = None) -> Dict[str, Any]:
+
+async def query_threat_intel(
+    ip: str = None, file_hash: str = None, url: str = None
+) -> Dict[str, Any]:
     """
     Query multiple threat intelligence sources.
 
@@ -410,6 +414,7 @@ async def query_threat_intel(ip: str = None, file_hash: str = None, url: str = N
 # =============================================================================
 # Alert Enrichment with Threat Intel
 # =============================================================================
+
 
 async def enrich_with_threat_intel(alert: SecurityAlert) -> Dict[str, Any]:
     """
@@ -492,6 +497,7 @@ def set_cache(key: str, data: Dict[str, Any]):
 # FastAPI Application
 # =============================================================================
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
@@ -565,8 +571,10 @@ app.add_middleware(
 # Background Task: Message Consumer
 # =============================================================================
 
+
 async def consume_alerts():
     """Consume enriched alerts and add threat intelligence."""
+
     async def process_message(message: dict):
         try:
             payload = message.get("payload", {})
@@ -626,6 +634,7 @@ async def consume_alerts():
 # =============================================================================
 # API Endpoints
 # =============================================================================
+
 
 @app.get("/health", tags=["Health"])
 async def health_check():

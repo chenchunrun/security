@@ -38,7 +38,7 @@ class TestE2EAlertProcessing:
     """End-to-end tests for complete alert processing pipeline."""
 
     @pytest.mark.asyncio
-    async async def test_full_alert_processing_pipeline(self, test_env):
+    async def test_full_alert_processing_pipeline(self, test_env):
         """
         Test complete pipeline: Ingestion → Normalization → Enrichment → AI Triage → Result
         """
@@ -53,7 +53,7 @@ class TestE2EAlertProcessing:
             alert_type="malware",
             severity="high",
             source_ip="192.168.1.100",
-            file_hash="5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"
+            file_hash="5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
         )
 
         # Ingest alert
@@ -70,14 +70,14 @@ class TestE2EAlertProcessing:
         # Verify notification sent (if applicable)
 
     @pytest.mark.asyncio
-    async async def test_malware_alert_workflow(self, test_env):
+    async def test_malware_alert_workflow(self, test_env):
         """Test malware alert through complete workflow."""
         alert_data = create_mock_alert(
             alert_id="e2e-malware-001",
             alert_type="malware",
             severity="critical",
             source_ip="203.0.113.1",  # External IP
-            file_hash="5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"
+            file_hash="5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
         )
 
         # Ingest
@@ -95,20 +95,20 @@ class TestE2EAlertProcessing:
         # 4. Verify notification sent
 
     @pytest.mark.asyncio
-    async async def test_phishing_alert_workflow(self, test_env):
+    async def test_phishing_alert_workflow(self, test_env):
         """Test phishing alert through complete workflow."""
         alert_data = create_mock_alert(
             alert_id="e2e-phishing-001",
             alert_type="phishing",
             severity="high",
             url="http://phishing-attack.com/steal-credentials",
-            user_id="user@example.com"
+            user_id="user@example.com",
         )
 
         # Similar to malware test but phishing-specific
 
     @pytest.mark.asyncio
-    async async def test_brute_force_alert_workflow(self, test_env):
+    async def test_brute_force_alert_workflow(self, test_env):
         """Test brute force alert through complete workflow."""
         alert_data = create_mock_alert(
             alert_id="e2e-bruteforce-001",
@@ -116,25 +116,25 @@ class TestE2EAlertProcessing:
             severity="medium",
             source_ip="198.51.100.1",
             target_ip="10.0.0.50",
-            user_id="admin"
+            user_id="admin",
         )
 
     @pytest.mark.asyncio
-    async async def test_batch_alert_processing(self, test_env):
+    async def test_batch_alert_processing(self, test_env):
         """Test processing multiple alerts in sequence."""
         alerts = [
             create_mock_alert(
-                alert_id=f"e2e-batch-{i:03d}",
-                alert_type=alert_type,
-                severity=severity
+                alert_id=f"e2e-batch-{i:03d}", alert_type=alert_type, severity=severity
             )
-            for i, (alert_type, severity) in enumerate([
-                ("malware", "high"),
-                ("phishing", "critical"),
-                ("brute_force", "medium"),
-                ("data_exfiltration", "high"),
-                ("intrusion", "critical"),
-            ])
+            for i, (alert_type, severity) in enumerate(
+                [
+                    ("malware", "high"),
+                    ("phishing", "critical"),
+                    ("brute_force", "medium"),
+                    ("data_exfiltration", "high"),
+                    ("intrusion", "critical"),
+                ]
+            )
         ]
 
         # Ingest all alerts
@@ -159,14 +159,14 @@ class TestE2EWorkflows:
     """End-to-end tests for workflow and automation."""
 
     @pytest.mark.asyncio
-    async async def test_critical_alert_workflow_execution(self, test_env):
+    async def test_critical_alert_workflow_execution(self, test_env):
         """Test complete workflow for critical alert."""
         # Ingest critical alert
         alert_data = create_mock_alert(
             alert_id="e2e-critical-001",
             alert_type="malware",
             severity="critical",
-            source_ip="203.0.113.1"
+            source_ip="203.0.113.1",
         )
 
         from services.alert_ingestor.main import app as ingestor_app
@@ -186,7 +186,7 @@ class TestE2EWorkflows:
         # 4. Verify actions executed after approval
 
     @pytest.mark.asyncio
-    async async def test_automation_playbook_execution(self, test_env):
+    async def test_automation_playbook_execution(self, test_env):
         """Test SOAR playbook execution."""
         # Create playbook execution request
         from services.automation_orchestrator.main import app as automation_app
@@ -196,14 +196,8 @@ class TestE2EWorkflows:
 
         response = client.post(
             "/api/v1/playbooks/execute",
-            params={
-                "playbook_id": "malware-response",
-                "alert_id": "e2e-auto-001"
-            },
-            json={
-                "source_ip": "192.168.1.100",
-                "file_hash": "abc123"
-            }
+            params={"playbook_id": "malware-response", "alert_id": "e2e-auto-001"},
+            json={"source_ip": "192.168.1.100", "file_hash": "abc123"},
         )
 
         assert response.status_code == 200
@@ -227,14 +221,14 @@ class TestE2ENotifications:
     """End-to-end tests for notification system."""
 
     @pytest.mark.asyncio
-    async async def test_notification_delivery(self, test_env):
+    async def test_notification_delivery(self, test_env):
         """Test notification sent for critical alert."""
         # Trigger critical alert that should send notification
         alert_data = create_mock_alert(
             alert_id="e2e-notify-001",
             alert_type="malware",
             severity="critical",
-            source_ip="203.0.113.1"
+            source_ip="203.0.113.1",
         )
 
         from services.alert_ingestor.main import app as ingestor_app
@@ -253,7 +247,7 @@ class TestE2ENotifications:
         # 3. Notification logged in database
 
     @pytest.mark.asyncio
-    async async def test_notification_aggregation(self, test_env):
+    async def test_notification_aggregation(self, test_env):
         """Test that multiple similar alerts are aggregated in notifications."""
         # Send multiple similar alerts
         from services.alert_ingestor.main import app as ingestor_app
@@ -266,7 +260,7 @@ class TestE2ENotifications:
                 alert_id=f"e2e-aggregate-{i:03d}",
                 alert_type="brute_force",
                 severity="medium",
-                source_ip="198.51.100.1"
+                source_ip="198.51.100.1",
             )
             response = client.post("/api/v1/alerts", json=alert_data)
             assert response.status_code == 201
@@ -283,7 +277,7 @@ class TestE2EPerformance:
     """End-to-end performance tests."""
 
     @pytest.mark.asyncio
-    async async def test_alert_processing_latency(self, test_env):
+    async def test_alert_processing_latency(self, test_env):
         """Test end-to-end alert processing latency."""
         from services.alert_ingestor.main import app as ingestor_app
         from fastapi.testclient import TestClient
@@ -291,9 +285,7 @@ class TestE2EPerformance:
         client = TestClient(ingestor_app)
 
         alert_data = create_mock_alert(
-            alert_id="e2e-perf-001",
-            alert_type="malware",
-            severity="high"
+            alert_id="e2e-perf-001", alert_type="malware", severity="high"
         )
 
         start_time = time.time()
@@ -314,7 +306,7 @@ class TestE2EPerformance:
         assert processing_time < 60  # 1 minute max for E2E
 
     @pytest.mark.asyncio
-    async async def test_system_throughput(self, test_env):
+    async def test_system_throughput(self, test_env):
         """Test system throughput with multiple alerts."""
         from services.alert_ingestor.main import app as ingestor_app
         from fastapi.testclient import TestClient
@@ -327,9 +319,7 @@ class TestE2EPerformance:
         # Ingest alerts
         for i in range(num_alerts):
             alert_data = create_mock_alert(
-                alert_id=f"e2e-throughput-{i:03d}",
-                alert_type="malware",
-                severity="high"
+                alert_id=f"e2e-throughput-{i:03d}", alert_type="malware", severity="high"
             )
             response = client.post("/api/v1/alerts", json=alert_data)
             assert response.status_code == 201
@@ -352,7 +342,7 @@ class TestE2EErrorHandling:
     """End-to-end error handling tests."""
 
     @pytest.mark.asyncio
-    async async def test_handling_of_malformed_alert(self, test_env):
+    async def test_handling_of_malformed_alert(self, test_env):
         """Test that malformed alerts are handled gracefully."""
         from services.alert_ingestor.main import app as ingestor_app
         from fastapi.testclient import TestClient
@@ -372,7 +362,7 @@ class TestE2EErrorHandling:
         assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async async def test_service_failure_recovery(self, test_env):
+    async def test_service_failure_recovery(self, test_env):
         """Test system recovery from service failure."""
         # In real E2E test, would:
         # 1. Stop a service (e.g., AI Triage)
@@ -396,14 +386,14 @@ E2E_TEST_SCENARIOS = [
             "source_ip": "203.0.113.1",
             "target_ip": "10.0.0.10",
             "file_hash": "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
-            "asset_id": "SERVER-CRITICAL-001"
+            "asset_id": "SERVER-CRITICAL-001",
         },
         "expected_outcomes": [
             "Alert enriched with threat intel",
             "AI triage assigns critical risk",
             "Workflow triggered with human review",
-            "Notification sent to security team"
-        ]
+            "Notification sent to security team",
+        ],
     },
     {
         "name": "Phishing Email to Multiple Users",
@@ -411,14 +401,14 @@ E2E_TEST_SCENARIOS = [
             "alert_type": "phishing",
             "severity": "high",
             "url": "http://phishing-attack.com/steal",
-            "sender_email": "attacker@malicious.com"
+            "sender_email": "attacker@malicious.com",
         },
         "expected_outcomes": [
             "URL flagged in threat intel",
             "AI triage assigns high risk",
             "SOAR playbook triggered to block sender",
-            "Email gateway notification sent"
-        ]
+            "Email gateway notification sent",
+        ],
     },
     {
         "name": "Brute Force from Internal IP",
@@ -427,13 +417,13 @@ E2E_TEST_SCENARIOS = [
             "severity": "medium",
             "source_ip": "192.168.1.50",
             "target_ip": "10.0.0.100",
-            "user_id": "admin"
+            "user_id": "admin",
         },
         "expected_outcomes": [
             "IP identified as internal",
             "User context retrieved",
             "AI triage assigns medium risk",
-            "Security team notified"
-        ]
+            "Security team notified",
+        ],
     },
 ]

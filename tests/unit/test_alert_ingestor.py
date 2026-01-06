@@ -30,6 +30,7 @@ class TestAlertIngestorAPI:
     def client(self):
         """Create test client."""
         from services.alert_ingestor.main import app
+
         return TestClient(app)
 
     @pytest.fixture
@@ -71,7 +72,7 @@ class TestAlertIngestorAPI:
             "severity": "high",
             "description": "Test alert",
             "source_ip": "45.33.32.156",
-            "target_ip": "10.0.0.50"
+            "target_ip": "10.0.0.50",
         }
 
         response = client.post("/api/v1/alerts", json=alert_data)
@@ -91,7 +92,7 @@ class TestAlertIngestorAPI:
             "alert_id": "",  # Invalid: empty
             "timestamp": "invalid-date",  # Invalid format
             "alert_type": "invalid-type",
-            "severity": "critical"
+            "severity": "critical",
         }
 
         response = client.post("/api/v1/alerts", json=invalid_data)
@@ -107,7 +108,7 @@ class TestAlertIngestorAPI:
                     "timestamp": datetime.utcnow().isoformat(),
                     "alert_type": "malware",
                     "severity": "high",
-                    "description": f"Batch alert {i}"
+                    "description": f"Batch alert {i}",
                 }
                 for i in range(3)
             ]
@@ -145,7 +146,7 @@ class TestAlertIngestorLogic:
             timestamp=datetime.utcnow(),
             alert_type=AlertType.MALWARE,
             severity=Severity.HIGH,
-            description="Test"
+            description="Test",
         )
 
         message = create_alert_message(alert)

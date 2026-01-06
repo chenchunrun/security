@@ -41,7 +41,7 @@ SERVICE_URLS = {
     "configuration": "http://localhost:8009",
     "llm_router": "http://localhost:8001",
     "workflow": "http://localhost:8004",
-    "automation": "http://localhost:8005"
+    "automation": "http://localhost:8005",
 }
 
 
@@ -68,7 +68,7 @@ app = FastAPI(
     title="Web Dashboard Service",
     description="Frontend interface for security triage system",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -80,6 +80,7 @@ app.add_middleware(
 
 
 # API Proxy endpoints - Forward requests to backend services
+
 
 async def proxy_request(service: str, path: str, method: str = "GET", data: Dict = None):
     """Proxy request to backend service."""
@@ -124,6 +125,7 @@ async def proxy_post(service: str, path: str, request: Request):
 
 
 # HTML Templates
+
 
 def get_base_template(title: str = "Security Triage Dashboard") -> str:
     """Get base HTML template."""
@@ -681,7 +683,7 @@ async def health_check():
         "status": "healthy",
         "service": "web-dashboard",
         "timestamp": datetime.utcnow().isoformat(),
-        "services": SERVICE_URLS
+        "services": SERVICE_URLS,
     }
 
 

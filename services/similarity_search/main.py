@@ -55,6 +55,7 @@ def initialize_embedding_model(model_name: str):
     """Initialize sentence transformer model."""
     try:
         from sentence_transformers import SentenceTransformer
+
         model = SentenceTransformer(model_name)
         logger.info(f"Loaded embedding model: {model_name}")
         return model
@@ -62,14 +63,11 @@ def initialize_embedding_model(model_name: str):
         logger.error("sentence_transformers not installed")
         raise HTTPException(
             status_code=500,
-            detail="sentence_transformers library required. Install with: pip install sentence-transformers"
+            detail="sentence_transformers library required. Install with: pip install sentence-transformers",
         )
     except Exception as e:
         logger.error(f"Failed to load embedding model: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to load embedding model: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to load embedding model: {str(e)}")
 
 
 def initialize_chromadb():
@@ -80,8 +78,7 @@ def initialize_chromadb():
 
         # Use persistent storage
         client = chromadb.PersistentClient(
-            path="./data/chroma",
-            settings=Settings(anonymized_telemetry=False)
+            path="./data/chroma", settings=Settings(anonymized_telemetry=False)
         )
 
         # Get or create collection
@@ -91,8 +88,7 @@ def initialize_chromadb():
             logger.info(f"Loaded existing collection: {collection_name}")
         except:
             collection = client.create_collection(
-                name=collection_name,
-                metadata={"hnsw:space": "cosine"}
+                name=collection_name, metadata={"hnsw:space": "cosine"}
             )
             logger.info(f"Created new collection: {collection_name}")
 
@@ -101,15 +97,11 @@ def initialize_chromadb():
     except ImportError:
         logger.error("chromadb not installed")
         raise HTTPException(
-            status_code=500,
-            detail="chromadb library required. Install with: pip install chromadb"
+            status_code=500, detail="chromadb library required. Install with: pip install chromadb"
         )
     except Exception as e:
         logger.error(f"Failed to initialize ChromaDB: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to initialize ChromaDB: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to initialize ChromaDB: {str(e)}")
 
 
 def alert_to_text(alert: SecurityAlert) -> str:
@@ -141,10 +133,7 @@ def alert_to_text(alert: SecurityAlert) -> str:
 def generate_embedding(text: str) -> List[float]:
     """Generate embedding for text."""
     if embedding_model is None:
-        raise HTTPException(
-            status_code=500,
-            detail="Embedding model not initialized"
-        )
+        raise HTTPException(status_code=500, detail="Embedding model not initialized")
 
     embedding = embedding_model.encode(text, convert_to_numpy=True)
     return embedding.tolist()
@@ -191,7 +180,7 @@ app = FastAPI(
     title="Similarity Search Service",
     description="Vector similarity search for security alerts using ChromaDB",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -224,8 +213,7 @@ async def search_similar_alerts(request: VectorSearchRequest):
             query_text = alert_to_text(alert)
         else:
             raise HTTPException(
-                status_code=400,
-                detail="Either query_text or alert_data must be provided"
+                status_code=400, detail="Either query_text or alert_data must be provided"
             )
 
         # Generate embedding
@@ -243,14 +231,16 @@ async def search_similar_alerts(request: VectorSearchRequest):
         results = collection.query(
             query_embeddings=[query_embedding],
             n_results=request.top_k,
-            where=where_filter if where_filter else None
+            where=where_filter if where_filter else None,
         )
 
         # Process results
         similar_alerts = []
         if results["ids"] and results["ids"][0]:
             for i, alert_id in enumerate(results["ids"][0]):
-                similarity_score = 1.0 - results["distances"][0][i]  # Convert distance to similarity
+                similarity_score = (
+                    1.0 - results["distances"][0][i]
+                )  # Convert distance to similarity
                 metadata = results["metadatas"][0][i] if results["metadatas"] else {}
 
                 # Filter by minimum similarity
@@ -291,10 +281,7 @@ async def search_similar_alerts(request: VectorSearchRequest):
         raise
     except Exception as e:
         logger.error(f"Search failed: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Search failed: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
 
 @app.post("/api/v1/embeddings", response_model=SuccessResponse[EmbeddingResponse])
@@ -333,10 +320,7 @@ async def generate_embeddings(request: EmbeddingRequest):
 
     except Exception as e:
         logger.error(f"Embedding generation failed: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Embedding generation failed: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Embedding generation failed: {str(e)}")
 
 
 @app.post("/api/v1/index", response_model=Dict[str, Any])
@@ -369,11 +353,7 @@ async def index_alert(alert: SecurityAlert, triage_result: Optional[Dict[str, An
             metadata["triage_result"] = triage_result
 
         # Add to ChromaDB
-        collection.add(
-            embeddings=[embedding],
-            ids=[alert.alert_id],
-            metadatas=[metadata]
-        )
+        collection.add(embeddings=[embedding], ids=[alert.alert_id], metadatas=[metadata])
 
         logger.info(f"Indexed alert {alert.alert_id}")
 
@@ -425,10 +405,7 @@ async def get_index_stats():
 
     except Exception as e:
         logger.error(f"Failed to get stats: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get stats: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to get stats: {str(e)}")
 
 
 @app.delete("/api/v1/index/{alert_id}", response_model=Dict[str, Any])

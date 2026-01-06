@@ -53,49 +53,34 @@ class SimilarAlert(BaseModel):
 
     alert_id: str = Field(..., description="Original alert ID")
     similarity_score: float = Field(
-        ...,
-        ge=0.0,
-        le=1.0,
-        description="Cosine similarity score (0-1, higher is better)"
+        ..., ge=0.0, le=1.0, description="Cosine similarity score (0-1, higher is better)"
     )
-    alert_data: Dict[str, Any] = Field(
-        ...,
-        description="Full alert data"
-    )
+    alert_data: Dict[str, Any] = Field(..., description="Full alert data")
     matched_fields: List[str] = Field(
-        default_factory=list,
-        description="Fields that contributed to similarity"
+        default_factory=list, description="Fields that contributed to similarity"
     )
-    risk_level: Optional[str] = Field(
-        default=None,
-        description="Risk level from original triage"
-    )
+    risk_level: Optional[str] = Field(default=None, description="Risk level from original triage")
     triage_result: Optional[Dict[str, Any]] = Field(
-        default=None,
-        description="Original triage result"
+        default=None, description="Original triage result"
     )
-    created_at: datetime = Field(
-        ...,
-        description="When alert was created"
-    )
+    created_at: datetime = Field(..., description="When alert was created")
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "alert_id": "ALT-123",
                 "similarity_score": 0.89,
                 "alert_data": {
                     "alert_type": "malware",
-                    "description": "Malware detected on endpoint"
+                    "description": "Malware detected on endpoint",
                 },
                 "matched_fields": ["description", "source_ip"],
                 "risk_level": "high",
-                "triage_result": {
-                    "confidence": 85,
-                    "reasoning": "Similar to previous incidents"
-                },
-                "created_at": "2025-01-05T12:00:00Z"
+                "triage_result": {"confidence": 85, "reasoning": "Similar to previous incidents"},
+                "created_at": "2025-01-05T12:00:00Z",
             }
-    })
+        }
+    )
 
 
 class VectorSearchRequest(BaseModel):
@@ -110,47 +95,33 @@ class VectorSearchRequest(BaseModel):
         filters: Optional filters for search
     """
 
-    query_text: Optional[str] = Field(
-        default=None,
-        description="Free-text query to search for"
-    )
+    query_text: Optional[str] = Field(default=None, description="Free-text query to search for")
     alert_data: Optional[Dict[str, Any]] = Field(
-        default=None,
-        description="Alert data to embed and search"
+        default=None, description="Alert data to embed and search"
     )
-    top_k: int = Field(
-        default=10,
-        ge=1,
-        le=100,
-        description="Number of results to return"
-    )
+    top_k: int = Field(default=10, ge=1, le=100, description="Number of results to return")
     min_similarity: float = Field(
-        default=0.7,
-        ge=0.0,
-        le=1.0,
-        description="Minimum similarity threshold"
+        default=0.7, ge=0.0, le=1.0, description="Minimum similarity threshold"
     )
     filters: Optional[Dict[str, Any]] = Field(
-        default=None,
-        description="Optional filters (alert_type, severity, etc.)"
+        default=None, description="Optional filters (alert_type, severity, etc.)"
     )
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "query_text": "Malware infection on workstation",
                 "alert_data": {
                     "alert_type": "malware",
                     "description": "Suspicious executable detected",
-                    "source_ip": "192.168.1.100"
+                    "source_ip": "192.168.1.100",
                 },
                 "top_k": 5,
                 "min_similarity": 0.75,
-                "filters": {
-                    "alert_type": "malware",
-                    "severity": "high"
-                }
+                "filters": {"alert_type": "malware", "severity": "high"},
             }
-    })
+        }
+    )
 
 
 class VectorSearchResponse(BaseModel):
@@ -165,25 +136,17 @@ class VectorSearchResponse(BaseModel):
     """
 
     query_embedding: Optional[List[float]] = Field(
-        default=None,
-        description="Query vector (optional, for debugging)"
+        default=None, description="Query vector (optional, for debugging)"
     )
     results: List[SimilarAlert] = Field(
-        ...,
-        description="List of similar alerts, ranked by similarity"
+        ..., description="List of similar alerts, ranked by similarity"
     )
-    total_results: int = Field(
-        ...,
-        ge=0,
-        description="Total number of matches above threshold"
-    )
-    search_time_ms: float = Field(
-        ...,
-        description="Search time in milliseconds"
-    )
+    total_results: int = Field(..., ge=0, description="Total number of matches above threshold")
+    search_time_ms: float = Field(..., description="Search time in milliseconds")
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "query_embedding": None,
                 "results": [
                     {
@@ -192,13 +155,14 @@ class VectorSearchResponse(BaseModel):
                         "alert_data": {},
                         "matched_fields": ["description"],
                         "risk_level": "high",
-                        "created_at": "2025-01-05T12:00:00Z"
+                        "created_at": "2025-01-05T12:00:00Z",
                     }
                 ],
                 "total_results": 15,
-                "search_time_ms": 45.2
+                "search_time_ms": 45.2,
             }
-    })
+        }
+    )
 
 
 class EmbeddingRequest(BaseModel):
@@ -210,26 +174,19 @@ class EmbeddingRequest(BaseModel):
         model: Embedding model to use
     """
 
-    texts: List[str] = Field(
-        ...,
-        min_length=1,
-        max_length=100,
-        description="Texts to embed"
-    )
+    texts: List[str] = Field(..., min_length=1, max_length=100, description="Texts to embed")
     model: EmbeddingModel = Field(
-        default=EmbeddingModel.MINILM_L6_V2,
-        description="Embedding model to use"
+        default=EmbeddingModel.MINILM_L6_V2, description="Embedding model to use"
     )
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
-                "texts": [
-                    "Malware detected on endpoint",
-                    "Suspicious network activity"
-                ],
-                "model": "all-MiniLM-L6-v2"
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "texts": ["Malware detected on endpoint", "Suspicious network activity"],
+                "model": "all-MiniLM-L6-v2",
             }
-    })
+        }
+    )
 
 
 class EmbeddingResponse(BaseModel):
@@ -242,30 +199,19 @@ class EmbeddingResponse(BaseModel):
         dimension: Dimension of embeddings
     """
 
-    embeddings: List[List[float]] = Field(
-        ...,
-        description="List of embedding vectors"
-    )
-    model: EmbeddingModel = Field(
-        ...,
-        description="Model used for generation"
-    )
-    dimension: int = Field(
-        ...,
-        ge=1,
-        description="Dimension of embeddings"
-    )
+    embeddings: List[List[float]] = Field(..., description="List of embedding vectors")
+    model: EmbeddingModel = Field(..., description="Model used for generation")
+    dimension: int = Field(..., ge=1, description="Dimension of embeddings")
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
-                "embeddings": [
-                    [0.1, 0.2, -0.3, ...],
-                    [0.4, -0.1, 0.5, ...]
-                ],
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "embeddings": [[0.1, 0.2, -0.3, ...], [0.4, -0.1, 0.5, ...]],
                 "model": "all-MiniLM-L6-v2",
-                "dimension": 384
+                "dimension": 384,
             }
-    })
+        }
+    )
 
 
 class IndexStats(BaseModel):
@@ -282,16 +228,15 @@ class IndexStats(BaseModel):
     total_vectors: int = Field(..., ge=0, description="Total vectors in index")
     dimension: int = Field(..., ge=1, description="Vector dimension")
     index_type: str = Field(..., description="Index type (HNSW, IVF, etc.)")
-    last_updated: datetime = Field(
-        ...,
-        description="Last update timestamp"
-    )
+    last_updated: datetime = Field(..., description="Last update timestamp")
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "total_vectors": 15000,
                 "dimension": 384,
                 "index_type": "HNSW",
-                "last_updated": "2025-01-05T12:00:00Z"
+                "last_updated": "2025-01-05T12:00:00Z",
             }
-    })
+        }
+    )

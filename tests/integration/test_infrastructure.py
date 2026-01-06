@@ -28,7 +28,7 @@ from datetime import datetime
 import time
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 try:
     import psycopg2
@@ -83,6 +83,7 @@ CHROMADB_CONFIG = {
 # PostgreSQL Tests
 # =============================================================================
 
+
 class TestPostgreSQL:
     """Test PostgreSQL database connectivity and functionality."""
 
@@ -121,39 +122,47 @@ class TestPostgreSQL:
         cursor = db_connection.cursor()
 
         # Check for alerts table
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT EXISTS (
                 SELECT FROM information_schema.tables
                 WHERE table_name = 'alerts'
             )
-        """)
+        """
+        )
         assert cursor.fetchone()[0] is True, "alerts table does not exist"
 
         # Check for triage_results table
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT EXISTS (
                 SELECT FROM information_schema.tables
                 WHERE table_name = 'triage_results'
             )
-        """)
+        """
+        )
         assert cursor.fetchone()[0] is True, "triage_results table does not exist"
 
         # Check for remediation_actions table
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT EXISTS (
                 SELECT FROM information_schema.tables
                 WHERE table_name = 'remediation_actions'
             )
-        """)
+        """
+        )
         assert cursor.fetchone()[0] is True, "remediation_actions table does not exist"
 
         # Check for threat_intelligence table
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT EXISTS (
                 SELECT FROM information_schema.tables
                 WHERE table_name = 'threat_intelligence'
             )
-        """)
+        """
+        )
         assert cursor.fetchone()[0] is True, "threat_intelligence table does not exist"
 
         print("✓ All required tables exist")
@@ -163,10 +172,12 @@ class TestPostgreSQL:
         cursor = db_connection.cursor()
 
         # Check for alerts table indexes
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT indexname FROM pg_indexes
             WHERE tablename = 'alerts'
-        """)
+        """
+        )
         indexes = [row[0] for row in cursor.fetchall()]
 
         assert "idx_alerts_alert_id" in indexes, "alert_id index missing"
@@ -191,11 +202,14 @@ class TestPostgreSQL:
 
         # Insert test alert
         test_alert_id = f"TEST-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO alerts (alert_id, timestamp, alert_type, severity, description)
             VALUES (%s, %s, %s, %s, %s)
             RETURNING id
-        """, (test_alert_id, datetime.now(), 'test', 'low', 'Test alert for integration testing'))
+        """,
+            (test_alert_id, datetime.now(), "test", "low", "Test alert for integration testing"),
+        )
 
         alert_id = cursor.fetchone()[0]
         assert alert_id is not None
@@ -215,6 +229,7 @@ class TestPostgreSQL:
 # =============================================================================
 # Redis Tests
 # =============================================================================
+
 
 class TestRedis:
     """Test Redis connectivity and functionality."""
@@ -313,6 +328,7 @@ class TestRedis:
 # RabbitMQ Tests
 # =============================================================================
 
+
 class TestRabbitMQ:
     """Test RabbitMQ connectivity and functionality."""
 
@@ -325,8 +341,7 @@ class TestRabbitMQ:
         for attempt in range(max_retries):
             try:
                 credentials = pika.PlainCredentials(
-                    RABBITMQ_CONFIG["user"],
-                    RABBITMQ_CONFIG["password"]
+                    RABBITMQ_CONFIG["user"], RABBITMQ_CONFIG["password"]
                 )
                 parameters = pika.ConnectionParameters(
                     host=RABBITMQ_CONFIG["host"],
@@ -413,6 +428,7 @@ class TestRabbitMQ:
 # ChromaDB Tests
 # =============================================================================
 
+
 class TestChromaDB:
     """Test ChromaDB connectivity and functionality."""
 
@@ -425,9 +441,9 @@ class TestChromaDB:
         for attempt in range(max_retries):
             try:
                 import chromadb
+
                 client = chromadb.HttpClient(
-                    host=CHROMADB_CONFIG["host"],
-                    port=CHROMADB_CONFIG["port"]
+                    host=CHROMADB_CONFIG["host"], port=CHROMADB_CONFIG["port"]
                 )
                 # Test connection
                 client.heartbeat()
@@ -454,7 +470,7 @@ class TestChromaDB:
         # Create collection
         collection = chromadb_client.create_collection(
             name=test_collection_name,
-            metadata={"description": "Test collection for integration testing"}
+            metadata={"description": "Test collection for integration testing"},
         )
 
         assert collection is not None
@@ -481,18 +497,11 @@ class TestChromaDB:
         ]
         test_documents = ["doc1", "doc2", "doc3"]
 
-        collection.add(
-            ids=test_ids,
-            embeddings=test_embeddings,
-            documents=test_documents
-        )
+        collection.add(ids=test_ids, embeddings=test_embeddings, documents=test_documents)
         print("✓ Inserted test vectors into ChromaDB")
 
         # Query
-        results = collection.query(
-            query_embeddings=[[0.1, 0.2, 0.3]],
-            n_results=2
-        )
+        results = collection.query(query_embeddings=[[0.1, 0.2, 0.3]], n_results=2)
 
         assert results is not None
         assert len(results["ids"][0]) == 2
@@ -505,6 +514,7 @@ class TestChromaDB:
 # =============================================================================
 # Performance Tests
 # =============================================================================
+
 
 class TestPerformance:
     """Performance benchmarks for infrastructure services."""
@@ -572,6 +582,7 @@ class TestPerformance:
 # Health Check Tests
 # =============================================================================
 
+
 class TestHealthChecks:
     """Test health check endpoints for infrastructure services."""
 
@@ -609,8 +620,7 @@ class TestHealthChecks:
         """Test RabbitMQ health check."""
         try:
             credentials = pika.PlainCredentials(
-                RABBITMQ_CONFIG["user"],
-                RABBITMQ_CONFIG["password"]
+                RABBITMQ_CONFIG["user"], RABBITMQ_CONFIG["password"]
             )
             parameters = pika.ConnectionParameters(
                 host=RABBITMQ_CONFIG["host"],
@@ -630,10 +640,8 @@ class TestHealthChecks:
         """Test ChromaDB health check."""
         try:
             import chromadb
-            client = chromadb.HttpClient(
-                host=CHROMADB_CONFIG["host"],
-                port=CHROMADB_CONFIG["port"]
-            )
+
+            client = chromadb.HttpClient(host=CHROMADB_CONFIG["host"], port=CHROMADB_CONFIG["port"])
             client.heartbeat()
 
             print("✓ ChromaDB health check passed")
