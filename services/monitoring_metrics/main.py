@@ -176,9 +176,11 @@ async def check_service_health():
                         service_health[service_name] = {
                             "status": "healthy" if is_healthy else "unhealthy",
                             "status_code": response.status_code,
-                            "response_time": response.elapsed.total_seconds()
-                            if hasattr(response, "elapsed")
-                            else 0,
+                            "response_time": (
+                                response.elapsed.total_seconds()
+                                if hasattr(response, "elapsed")
+                                else 0
+                            ),
                             "last_check": datetime.utcnow().isoformat(),
                             "url": service_config["url"],
                         }

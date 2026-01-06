@@ -252,9 +252,9 @@ class TestAlertValidation:
     def test_file_hash_validation(self, client, valid_alert_data):
         """Test file hash validation."""
         # Valid MD5
-        valid_alert_data[
-            "file_hash"
-        ] = "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"
+        valid_alert_data["file_hash"] = (
+            "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"
+        )
         response = client.post("/api/v1/alerts", json=valid_alert_data)
         assert response.status_code == 201
 
