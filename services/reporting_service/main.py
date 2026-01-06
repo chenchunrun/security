@@ -14,21 +14,21 @@
 
 """Reporting Service - Generates various security reports."""
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
-import uuid
-from typing import Dict, Any, Optional, List
-from enum import Enum
 import asyncio
 import io
+import uuid
+from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
-from shared.models import SuccessResponse, ResponseMeta
+from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from shared.database import DatabaseManager, get_database_manager
 from shared.messaging import MessageConsumer
-from shared.utils import get_logger, Config
-from shared.database import get_database_manager, DatabaseManager
+from shared.models import ResponseMeta, SuccessResponse
+from shared.utils import Config, get_logger
 
 logger = get_logger(__name__)
 config = Config()

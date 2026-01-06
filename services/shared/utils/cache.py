@@ -18,8 +18,9 @@ Redis cache manager.
 Provides caching utilities with Redis.
 """
 
-from typing import Optional, Any, Dict
 import json
+from typing import Any, Dict, Optional
+
 import redis.asyncio as redis
 from shared.utils.logger import get_logger
 

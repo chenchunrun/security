@@ -18,11 +18,12 @@ Configuration management.
 Provides application configuration from environment variables and YAML files.
 """
 
-from typing import Optional, Any
-from pydantic import BaseModel, Field, ConfigDict
-from pydantic_settings import BaseSettings
 import os
+from typing import Any, Optional
+
 import yaml
+from pydantic import BaseModel, ConfigDict, Field
+from pydantic_settings import BaseSettings
 
 
 class AppConfig(BaseSettings):

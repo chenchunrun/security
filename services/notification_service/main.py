@@ -14,20 +14,20 @@
 
 """Notification Service - Sends notifications via multiple channels."""
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
-from fastapi.middleware.cors import CORSMiddleware
+import asyncio
+import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
-import uuid
-from typing import Dict, Any, Optional, List
 from enum import Enum
-import asyncio
-import httpx
+from typing import Any, Dict, List, Optional
 
-from shared.models import SuccessResponse, ResponseMeta
+import httpx
+from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from shared.database import DatabaseManager, get_database_manager
 from shared.messaging import MessageConsumer, MessagePublisher
-from shared.utils import get_logger, Config
-from shared.database import get_database_manager, DatabaseManager
+from shared.models import ResponseMeta, SuccessResponse
+from shared.utils import Config, get_logger
 
 logger = get_logger(__name__)
 config = Config()

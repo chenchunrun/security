@@ -18,17 +18,18 @@ End-to-End tests for Stages 1-4.
 Tests the complete alert processing pipeline from ingestion to notification.
 """
 
-import pytest
 import asyncio
 import time
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any, Dict
+
+import pytest
 
 from tests.helpers import (
-    create_mock_alert,
     assert_valid_alert,
-    assert_valid_triage_result,
     assert_valid_enrichment,
+    assert_valid_triage_result,
+    create_mock_alert,
 )
 
 
@@ -43,8 +44,9 @@ class TestE2EAlertProcessing:
         Test complete pipeline: Ingestion → Normalization → Enrichment → AI Triage → Result
         """
         # Step 1: Ingest alert
-        from services.alert_ingestor.main import app as ingestor_app
         from fastapi.testclient import TestClient
+
+        from services.alert_ingestor.main import app as ingestor_app
 
         client = TestClient(ingestor_app)
 
@@ -81,8 +83,9 @@ class TestE2EAlertProcessing:
         )
 
         # Ingest
-        from services.alert_ingestor.main import app as ingestor_app
         from fastapi.testclient import TestClient
+
+        from services.alert_ingestor.main import app as ingestor_app
 
         client = TestClient(ingestor_app)
         response = client.post("/api/v1/alerts", json=alert_data)
@@ -138,8 +141,9 @@ class TestE2EAlertProcessing:
         ]
 
         # Ingest all alerts
-        from services.alert_ingestor.main import app as ingestor_app
         from fastapi.testclient import TestClient
+
+        from services.alert_ingestor.main import app as ingestor_app
 
         client = TestClient(ingestor_app)
 
@@ -169,8 +173,9 @@ class TestE2EWorkflows:
             source_ip="203.0.113.1",
         )
 
-        from services.alert_ingestor.main import app as ingestor_app
         from fastapi.testclient import TestClient
+
+        from services.alert_ingestor.main import app as ingestor_app
 
         client = TestClient(ingestor_app)
         response = client.post("/api/v1/alerts", json=alert_data)
@@ -189,8 +194,9 @@ class TestE2EWorkflows:
     async def test_automation_playbook_execution(self, test_env):
         """Test SOAR playbook execution."""
         # Create playbook execution request
-        from services.automation_orchestrator.main import app as automation_app
         from fastapi.testclient import TestClient
+
+        from services.automation_orchestrator.main import app as automation_app
 
         client = TestClient(automation_app)
 
@@ -231,8 +237,9 @@ class TestE2ENotifications:
             source_ip="203.0.113.1",
         )
 
-        from services.alert_ingestor.main import app as ingestor_app
         from fastapi.testclient import TestClient
+
+        from services.alert_ingestor.main import app as ingestor_app
 
         client = TestClient(ingestor_app)
         response = client.post("/api/v1/alerts", json=alert_data)
@@ -250,8 +257,9 @@ class TestE2ENotifications:
     async def test_notification_aggregation(self, test_env):
         """Test that multiple similar alerts are aggregated in notifications."""
         # Send multiple similar alerts
-        from services.alert_ingestor.main import app as ingestor_app
         from fastapi.testclient import TestClient
+
+        from services.alert_ingestor.main import app as ingestor_app
 
         client = TestClient(ingestor_app)
 
@@ -279,8 +287,9 @@ class TestE2EPerformance:
     @pytest.mark.asyncio
     async def test_alert_processing_latency(self, test_env):
         """Test end-to-end alert processing latency."""
-        from services.alert_ingestor.main import app as ingestor_app
         from fastapi.testclient import TestClient
+
+        from services.alert_ingestor.main import app as ingestor_app
 
         client = TestClient(ingestor_app)
 
@@ -308,8 +317,9 @@ class TestE2EPerformance:
     @pytest.mark.asyncio
     async def test_system_throughput(self, test_env):
         """Test system throughput with multiple alerts."""
-        from services.alert_ingestor.main import app as ingestor_app
         from fastapi.testclient import TestClient
+
+        from services.alert_ingestor.main import app as ingestor_app
 
         client = TestClient(ingestor_app)
 
@@ -344,8 +354,9 @@ class TestE2EErrorHandling:
     @pytest.mark.asyncio
     async def test_handling_of_malformed_alert(self, test_env):
         """Test that malformed alerts are handled gracefully."""
-        from services.alert_ingestor.main import app as ingestor_app
         from fastapi.testclient import TestClient
+
+        from services.alert_ingestor.main import app as ingestor_app
 
         client = TestClient(ingestor_app)
 

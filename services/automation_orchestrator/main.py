@@ -14,27 +14,27 @@
 
 """Automation Orchestrator Service - SOAR functionality for automated response."""
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
-from fastapi.middleware.cors import CORSMiddleware
+import asyncio
+import json
+import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
-import uuid
-import asyncio
-from typing import Dict, Any, Optional, List
-import json
+from typing import Any, Dict, List, Optional
 
+from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from shared.database import DatabaseManager, get_database_manager
+from shared.errors import AutomationError
+from shared.messaging import MessageConsumer, MessagePublisher
 from shared.models import (
     AutomationPlaybook,
-    PlaybookExecution,
     PlaybookAction,
-    WorkflowStatus,
-    SuccessResponse,
+    PlaybookExecution,
     ResponseMeta,
+    SuccessResponse,
+    WorkflowStatus,
 )
-from shared.messaging import MessagePublisher, MessageConsumer
-from shared.utils import get_logger, Config
-from shared.database import get_database_manager, DatabaseManager
-from shared.errors import AutomationError
+from shared.utils import Config, get_logger
 
 logger = get_logger(__name__)
 config = Config()

@@ -18,24 +18,24 @@ Unit tests for shared models.
 Tests all Pydantic models in the shared module.
 """
 
-import pytest
 from datetime import datetime, timedelta
-from pydantic import ValidationError
 
+import pytest
+from pydantic import ValidationError
 from shared.models import (
-    SecurityAlert,
-    AlertType,
-    Severity,
     AlertStatus,
-    TriageResult,
+    AlertType,
+    EnrichedContext,
+    LLMRequest,
+    NetworkContext,
     RiskLevel,
+    SecurityAlert,
+    Severity,
+    TaskType,
+    TriageResult,
+    VectorSearchRequest,
     WorkflowExecution,
     WorkflowStatus,
-    LLMRequest,
-    TaskType,
-    VectorSearchRequest,
-    EnrichedContext,
-    NetworkContext,
 )
 
 

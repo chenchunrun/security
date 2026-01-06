@@ -26,11 +26,11 @@ Run tests:
   ./tests/run_tests.py --html             # Generate HTML report
 """
 
-import sys
-import subprocess
 import argparse
-from pathlib import Path
+import subprocess
+import sys
 from datetime import datetime
+from pathlib import Path
 
 
 def run_command(cmd: list, description: str) -> int:

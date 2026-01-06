@@ -19,10 +19,10 @@ POC Test Quick Start Script
 Quick setup and execution of POC tests.
 """
 
-import os
-import sys
-import subprocess
 import argparse
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 

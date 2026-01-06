@@ -18,9 +18,10 @@ Common models for API responses and pagination.
 These models are used across all services for consistent API responses.
 """
 
-from typing import Generic, TypeVar, Any, Optional
-from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
+from typing import Any, Generic, Optional, TypeVar
+
+from pydantic import BaseModel, ConfigDict, Field
 
 T = TypeVar("T")
 

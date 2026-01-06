@@ -19,10 +19,11 @@ This module defines models for threat intelligence data, including
 IOCs (Indicators of Compromise), threat scores, and intelligence sources.
 """
 
-from typing import Optional, Any
-from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 from enum import Enum
+from typing import Any, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class IOCType(str, Enum):

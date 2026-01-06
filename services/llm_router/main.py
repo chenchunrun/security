@@ -14,32 +14,32 @@
 
 """LLM Router Service - Intelligently routes requests to DeepSeek or Qwen models."""
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
-from fastapi.middleware.cors import CORSMiddleware
+import asyncio
+import time
+import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
-import uuid
-import time
-import asyncio
-from typing import Any, Optional, Dict
-import httpx
+from typing import Any, Dict, Optional
 
+import httpx
+from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from shared.database import get_database_manager
 from shared.models import (
+    LLMChoice,
+    LLMMessage,
+    LLMModel,
+    LLMProvider,
     LLMRequest,
     LLMResponse,
-    LLMProvider,
-    LLMModel,
-    TaskType,
-    RouterDecision,
-    ModelCapabilities,
-    SuccessResponse,
-    ResponseMeta,
-    LLMChoice,
     LLMUsage,
-    LLMMessage,
+    ModelCapabilities,
+    ResponseMeta,
+    RouterDecision,
+    SuccessResponse,
+    TaskType,
 )
-from shared.utils import get_logger, Config
-from shared.database import get_database_manager
+from shared.utils import Config, get_logger
 
 logger = get_logger(__name__)
 config = Config()

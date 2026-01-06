@@ -18,10 +18,11 @@ Structured logging utilities.
 Provides JSON-structured logging with loguru.
 """
 
-from loguru import logger as _logger
 import sys
-from typing import Any, Dict, Optional
 from datetime import datetime
+from typing import Any, Dict, Optional
+
+from loguru import logger as _logger
 
 
 def get_logger(name: str) -> Any:

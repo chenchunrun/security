@@ -18,8 +18,9 @@ Shared authentication and authorization layer.
 Provides JWT token management and RBAC permissions.
 """
 
-from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+
 import jwt
 from shared.errors.exceptions import AuthenticationError, AuthorizationError
 from shared.utils.logger import get_logger

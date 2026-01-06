@@ -18,11 +18,12 @@ Shared messaging layer for RabbitMQ integration.
 Provides message publishing and consuming utilities.
 """
 
-from typing import Optional, Dict, Any, Callable
-from aio_pika import connect_robust, Message, ExchangeType, RobustConnection
-from aio_pika.abc import AbstractChannel, AbstractQueue
-import json
 import asyncio
+import json
+from typing import Any, Callable, Dict, Optional
+
+from aio_pika import ExchangeType, Message, RobustConnection, connect_robust
+from aio_pika.abc import AbstractChannel, AbstractQueue
 from shared.utils.logger import get_logger
 
 logger = get_logger(__name__)

@@ -19,11 +19,12 @@ This module defines all models related to security alerts, including
 the main alert model, enums for types and severities, and alert status tracking.
 """
 
-from typing import Optional, Any
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+import re
 from datetime import datetime, timedelta
 from enum import Enum
-import re
+from typing import Any, Optional
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class AlertType(str, Enum):

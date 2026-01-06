@@ -20,23 +20,24 @@ These tests verify that Docker Compose infrastructure services
 and accessible.
 """
 
+import asyncio
 import os
 import sys
-import pytest
-import asyncio
-from datetime import datetime
 import time
+from datetime import datetime
+
+import pytest
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 try:
-    import psycopg2
-    from psycopg2 import OperationalError
-    import redis
     import pika
+    import psycopg2
+    import redis
     import requests
-    from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+    from psycopg2 import OperationalError
+    from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
     from sqlalchemy.orm import sessionmaker
 except ImportError as e:
     pytest.skip(f"Required dependencies not installed: {e}", allow_module_level=True)

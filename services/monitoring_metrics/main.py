@@ -14,19 +14,19 @@
 
 """Monitoring & Metrics Service - Collects and exposes system metrics."""
 
+import asyncio
+import time
+import uuid
+from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+
+import psutil
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
-from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
-import uuid
-import psutil
-import time
-from typing import Dict, Any, Optional, List
-import asyncio
-
-from shared.utils import get_logger, Config
-from shared.database import get_database_manager, DatabaseManager
+from shared.database import DatabaseManager, get_database_manager
+from shared.utils import Config, get_logger
 
 logger = get_logger(__name__)
 config = Config()

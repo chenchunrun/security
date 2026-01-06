@@ -18,25 +18,26 @@ Pytest configuration and fixtures.
 This module provides shared fixtures and configuration for all tests.
 """
 
+import asyncio
+import json
 import os
 import sys
-import asyncio
+import tempfile
+from pathlib import Path
+from typing import AsyncGenerator, Generator
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 import pytest_asyncio
-from typing import AsyncGenerator, Generator
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
-import tempfile
-import json
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from fastapi.testclient import TestClient
-from httpx import AsyncClient, ASGITransport
-from datetime import datetime, timedelta
 import uuid
+from datetime import datetime, timedelta
 
+from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
 
 # Environment setup
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost/test_db")
@@ -71,7 +72,7 @@ def mock_config():
 async def mock_db():
     """Mock database session for testing."""
     from shared.database import get_database_manager
-    from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+    from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
     from sqlalchemy.orm import sessionmaker
 
     # Use in-memory SQLite for testing
@@ -126,7 +127,7 @@ def mock_rabbitmq():
 @pytest.fixture
 def sample_alert():
     """Sample security alert for testing."""
-    from shared.models import SecurityAlert, AlertType, Severity
+    from shared.models import AlertType, SecurityAlert, Severity
 
     return SecurityAlert(
         alert_id="ALT-TEST-001",
@@ -144,12 +145,12 @@ def sample_alert():
 def sample_triage_result():
     """Sample triage result for testing."""
     from shared.models import (
-        TriageResult,
+        ActionType,
+        RemediationAction,
+        RemediationPriority,
         RiskAssessment,
         RiskLevel,
-        RemediationAction,
-        ActionType,
-        RemediationPriority,
+        TriageResult,
     )
 
     return TriageResult(

@@ -19,12 +19,13 @@ These tests validate complete workflows using actual service logic
 with mocked external dependencies (database, message queues, LLM APIs).
 """
 
-import pytest
 import asyncio
 import os
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any, Dict
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 # Set test environment
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost/test_db")
@@ -74,7 +75,8 @@ class TestAlertLifecycle:
     @pytest.mark.asyncio
     async def test_alert_ingestion_to_queue(self, test_infrastructure):
         """Test alert is ingested and queued for processing."""
-        from shared.models import SecurityAlert, AlertType, Severity
+        from shared.models import AlertType, SecurityAlert, Severity
+
         from services.alert_ingestor.main import create_alert_message
 
         # Step 1: Create security alert
@@ -108,7 +110,7 @@ class TestAlertLifecycle:
     @pytest.mark.asyncio
     async def test_alert_normalization(self):
         """Test alert normalization process."""
-        from shared.models import SecurityAlert, AlertType, Severity
+        from shared.models import AlertType, SecurityAlert, Severity
 
         # Simulate raw alert from external source
         raw_alert = {
@@ -140,11 +142,11 @@ class TestAlertLifecycle:
     async def test_alert_enrichment(self):
         """Test alert enrichment with context."""
         from shared.models import (
-            SecurityAlert,
             AlertType,
-            Severity,
             EnrichedContext,
             NetworkContext,
+            SecurityAlert,
+            Severity,
         )
 
         alert = SecurityAlert(
@@ -174,15 +176,15 @@ class TestAlertLifecycle:
     async def test_triage_generation(self):
         """Test triage result generation."""
         from shared.models import (
-            SecurityAlert,
+            ActionType,
             AlertType,
-            Severity,
-            TriageResult,
+            RemediationAction,
+            RemediationPriority,
             RiskAssessment,
             RiskLevel,
-            RemediationAction,
-            ActionType,
-            RemediationPriority,
+            SecurityAlert,
+            Severity,
+            TriageResult,
         )
 
         alert = SecurityAlert(
@@ -260,11 +262,11 @@ class TestWorkflowExecution:
     async def test_workflow_trigger(self):
         """Test workflow is triggered by alert."""
         from shared.models import (
+            AlertType,
+            SecurityAlert,
+            Severity,
             WorkflowExecution,
             WorkflowStatus,
-            SecurityAlert,
-            AlertType,
-            Severity,
         )
 
         alert = SecurityAlert(
@@ -293,7 +295,7 @@ class TestWorkflowExecution:
     @pytest.mark.asyncio
     async def test_automation_execution(self):
         """Test automation playbook execution."""
-        from shared.models import PlaybookExecution, PlaybookStatus, PlaybookAction, ActionType
+        from shared.models import ActionType, PlaybookAction, PlaybookExecution, PlaybookStatus
 
         playbook_execution = PlaybookExecution(
             execution_id="pb-exec-001",
@@ -334,19 +336,19 @@ class TestDataFlow:
     async def test_complete_data_pipeline(self):
         """Test complete data from ingestion to response."""
         from shared.models import (
-            SecurityAlert,
-            AlertType,
-            Severity,
-            TriageResult,
-            RiskAssessment,
-            RiskLevel,
-            RemediationAction,
             ActionType,
-            RemediationPriority,
-            WorkflowExecution,
-            WorkflowStatus,
+            AlertType,
             EnrichedContext,
             NetworkContext,
+            RemediationAction,
+            RemediationPriority,
+            RiskAssessment,
+            RiskLevel,
+            SecurityAlert,
+            Severity,
+            TriageResult,
+            WorkflowExecution,
+            WorkflowStatus,
         )
 
         print("\n=== Complete Alert Processing Pipeline ===\n")
@@ -444,7 +446,7 @@ class TestPerformanceMetrics:
         """Test alert processing meets SLA."""
         import time
 
-        from shared.models import SecurityAlert, AlertType, Severity
+        from shared.models import AlertType, SecurityAlert, Severity
 
         # Simulate alert processing
         start_time = time.time()
@@ -470,7 +472,7 @@ class TestPerformanceMetrics:
     @pytest.mark.asyncio
     async def test_throughput_benchmark(self):
         """Test system can handle target throughput."""
-        from shared.models import SecurityAlert, AlertType, Severity
+        from shared.models import AlertType, SecurityAlert, Severity
 
         target_throughput = 100  # alerts per second
         test_alerts = 10  # Reduced for testing
@@ -500,7 +502,6 @@ class TestPerformanceMetrics:
 
 # Import time module for performance tests
 import time
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "-s"])

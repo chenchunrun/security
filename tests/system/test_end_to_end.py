@@ -18,11 +18,12 @@ System tests for complete Security Triage System.
 These tests verify the entire system works end-to-end.
 """
 
-import pytest
 import asyncio
-import httpx
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any, Dict
+
+import httpx
+import pytest
 
 
 @pytest.mark.system

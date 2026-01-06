@@ -14,30 +14,30 @@
 
 """Similarity Search Service - Uses ChromaDB for vector similarity search."""
 
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+import json
+import time
+import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
-import uuid
-import time
-from typing import Dict, Any, Optional, List
-import json
+from typing import Any, Dict, List, Optional
 
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from shared.database import get_database_manager
+from shared.messaging import MessageConsumer
 from shared.models import (
-    SecurityAlert,
-    VectorSearchRequest,
-    VectorSearchResponse,
-    SimilarAlert,
+    EmbeddingModel,
     EmbeddingRequest,
     EmbeddingResponse,
-    EmbeddingModel,
     IndexStats,
-    SuccessResponse,
     ResponseMeta,
+    SecurityAlert,
+    SimilarAlert,
+    SuccessResponse,
+    VectorSearchRequest,
+    VectorSearchResponse,
 )
-from shared.messaging import MessageConsumer
-from shared.utils import get_logger, Config
-from shared.database import get_database_manager
+from shared.utils import Config, get_logger
 
 logger = get_logger(__name__)
 config = Config()

@@ -19,27 +19,27 @@ This service consumes raw alerts from the message queue, normalizes them
 to a standard format, extracts IOCs, and publishes normalized alerts.
 """
 
+import asyncio
+import hashlib
+import re
+import uuid
+from collections import defaultdict
+from contextlib import asynccontextmanager
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Set
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from datetime import datetime
-import uuid
-import asyncio
-import re
-import hashlib
-from contextlib import asynccontextmanager
-from typing import Dict, List, Optional, Any, Set
-from collections import defaultdict
-
+from shared.database import DatabaseManager, get_database_manager
+from shared.messaging import MessageConsumer, MessagePublisher
 from shared.models import (
-    SecurityAlert,
     AlertType,
+    ResponseMeta,
+    SecurityAlert,
     Severity,
     SuccessResponse,
-    ResponseMeta,
 )
-from shared.messaging import MessagePublisher, MessageConsumer
-from shared.database import get_database_manager, DatabaseManager
-from shared.utils import get_logger, Config
+from shared.utils import Config, get_logger
 
 # Initialize logger
 logger = get_logger(__name__)

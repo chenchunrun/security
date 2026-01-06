@@ -18,12 +18,12 @@ Unit tests for Alert Ingestor service.
 Refactored to use mock AppConfig to avoid validation errors.
 """
 
-import pytest
 import os
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch, Mock
-from fastapi.testclient import TestClient
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
+import pytest
+from fastapi.testclient import TestClient
 
 # Set environment variables BEFORE importing any services
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost/test_db")
@@ -148,8 +148,9 @@ class TestAlertIngestorLogic:
     @pytest.mark.asyncio
     async def test_message_format(self):
         """Test message is formatted correctly."""
+        from shared.models import AlertType, SecurityAlert, Severity
+
         from services.alert_ingestor.main import create_alert_message
-        from shared.models import SecurityAlert, AlertType, Severity
 
         alert = SecurityAlert(
             alert_id="ALT-MSG-TEST",

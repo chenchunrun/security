@@ -19,10 +19,11 @@ This module defines models for risk assessment, including risk scores,
 risk levels, and remediation recommendations.
 """
 
-from typing import Optional, Any
-from pydantic import BaseModel, Field, field_validator, ConfigDict
 from datetime import datetime
 from enum import Enum
+from typing import Any, Optional
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class RiskLevel(str, Enum):

@@ -19,10 +19,11 @@ This module defines models for enriched context information including
 network context, asset context, and user context.
 """
 
-from typing import Optional, Any
-from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 from enum import Enum
+from typing import Any, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class NetworkContext(BaseModel):

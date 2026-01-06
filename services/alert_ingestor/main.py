@@ -18,30 +18,30 @@ Alert Ingestor Service - Main Application
 Receives security alerts from multiple sources and publishes to message queue.
 """
 
-from fastapi import FastAPI, Depends, HTTPException, status, Request
+import asyncio
+import uuid
+from collections import defaultdict
+from contextlib import asynccontextmanager
+from datetime import datetime
+from typing import Dict, List
+
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
-import uuid
-from datetime import datetime
-import asyncio
-from contextlib import asynccontextmanager
-from typing import Dict, List
-from collections import defaultdict
-
+from shared.database import DatabaseManager, get_database_manager
+from shared.errors import ValidationError
+from shared.messaging import MessagePublisher
 from shared.models import (
-    SecurityAlert,
     AlertBatch,
-    SuccessResponse,
     ErrorResponse,
     ResponseMeta,
+    SecurityAlert,
+    SuccessResponse,
 )
-from shared.messaging import MessagePublisher
-from shared.database import get_database_manager, DatabaseManager
-from shared.utils import get_logger, Config
-from shared.errors import ValidationError
+from shared.utils import Config, get_logger
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 # Initialize logger
 logger = get_logger(__name__)

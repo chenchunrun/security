@@ -16,10 +16,10 @@
 Unit tests for Alert Ingestor service.
 """
 
-import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from fastapi.testclient import TestClient
 
 
@@ -138,8 +138,9 @@ class TestAlertIngestorLogic:
     @pytest.mark.asyncio
     async def test_message_format(self, mock_publisher):
         """Test message is formatted correctly."""
+        from shared.models import AlertType, SecurityAlert, Severity
+
         from services.alert_ingestor.main import create_alert_message
-        from shared.models import SecurityAlert, AlertType, Severity
 
         alert = SecurityAlert(
             alert_id="ALT-MSG-TEST",

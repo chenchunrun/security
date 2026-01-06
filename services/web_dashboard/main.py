@@ -14,19 +14,19 @@
 
 """Web Dashboard Service - Frontend interface for security triage system."""
 
+import os
+import uuid
+from contextlib import asynccontextmanager
+from datetime import datetime
+from typing import Any, Dict, Optional
+
+import httpx
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from contextlib import asynccontextmanager
-from datetime import datetime
-import uuid
-from typing import Dict, Any, Optional
-import httpx
-import os
-
-from shared.utils import get_logger, Config
-from shared.database import get_database_manager, DatabaseManager
+from shared.database import DatabaseManager, get_database_manager
+from shared.utils import Config, get_logger
 
 logger = get_logger(__name__)
 config = Config()

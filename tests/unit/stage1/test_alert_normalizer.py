@@ -23,13 +23,14 @@ Tests:
 - Message publishing
 """
 
-import pytest
-from unittest.mock import AsyncMock, Mock, patch
 from datetime import datetime
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 from fastapi.testclient import TestClient
+from shared.models import AlertType, SecurityAlert, Severity
 
 from services.alert_normalizer.main import app
-from shared.models import SecurityAlert, AlertType, Severity
 
 
 @pytest.mark.unit

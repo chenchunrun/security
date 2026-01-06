@@ -18,12 +18,12 @@ Integration tests for Alert Processing Pipeline.
 Tests the complete flow from alert ingestion to triage.
 """
 
-import pytest
 import asyncio
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from shared.models import SecurityAlert, AlertType, Severity
+import pytest
+from shared.models import AlertType, SecurityAlert, Severity
 
 
 @pytest.mark.integration
@@ -129,10 +129,10 @@ class TestWorkflowIntegration:
     async def test_workflow_execution_flow(self):
         """Test workflow triggers automation."""
         from shared.models import (
-            WorkflowExecution,
-            WorkflowStatus,
             AutomationPlaybook,
             PlaybookExecution,
+            WorkflowExecution,
+            WorkflowStatus,
         )
 
         # Create workflow execution

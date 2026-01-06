@@ -18,33 +18,34 @@ Unit tests for shared models.
 Tests model validation, serialization, and basic functionality.
 """
 
-import pytest
 from datetime import datetime, timedelta
+
+import pytest
 from shared.models.alert import (
-    AlertType,
-    Severity,
-    AlertStatus,
-    SecurityAlert,
     AlertBatch,
     AlertFilter,
-)
-from shared.models.threat_intel import (
-    IOCType,
-    ThreatLevel,
-    ThreatIntel,
-    AggregatedThreatIntel,
+    AlertStatus,
+    AlertType,
+    SecurityAlert,
+    Severity,
 )
 from shared.models.context import (
-    NetworkContext,
     AssetContext,
-    UserContext,
     EnrichedContext,
+    NetworkContext,
+    UserContext,
 )
 from shared.models.risk import (
-    RiskLevel,
     RemediationAction,
     RiskAssessment,
+    RiskLevel,
     TriageResult,
+)
+from shared.models.threat_intel import (
+    AggregatedThreatIntel,
+    IOCType,
+    ThreatIntel,
+    ThreatLevel,
 )
 
 

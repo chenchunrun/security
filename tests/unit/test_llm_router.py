@@ -16,9 +16,9 @@
 Unit tests for LLM Router service.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from fastapi.testclient import TestClient
 
 
@@ -118,7 +118,7 @@ class TestLLMRouterLogic:
 
     def test_route_request_with_model_specified(self):
         """Test routing when model is explicitly specified."""
-        from services.llm_router.main import route_request, LLMRequest, TaskType, LLMModel
+        from services.llm_router.main import LLMModel, LLMRequest, TaskType, route_request
 
         request = LLMRequest(
             task_type=TaskType.TRIAGE,
@@ -135,7 +135,7 @@ class TestLLMRouterLogic:
 
     def test_route_request_by_task_type(self):
         """Test routing based on task type."""
-        from services.llm_router.main import route_request, LLMRequest, TaskType
+        from services.llm_router.main import LLMRequest, TaskType, route_request
 
         request = LLMRequest(
             task_type=TaskType.TRIAGE,

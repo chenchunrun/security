@@ -18,10 +18,11 @@ Analytics and reporting models.
 This module defines models for data analytics, metrics, and reporting.
 """
 
-from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class MetricType(str, Enum):

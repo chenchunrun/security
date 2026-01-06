@@ -23,8 +23,8 @@ import json
 import random
 import uuid
 from datetime import datetime, timedelta
-from typing import List, Dict, Any
 from ipaddress import IPv4Address
+from typing import Any, Dict, List
 
 
 class AlertDataGenerator:

@@ -14,32 +14,32 @@
 
 """Data Analytics Service - Provides analytics and metrics for security alerts."""
 
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.middleware.cors import CORSMiddleware
+import asyncio
+import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
-import uuid
-from typing import Dict, Any, Optional, List
-import asyncio
+from typing import Any, Dict, List, Optional
 
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+from shared.database import DatabaseManager, get_database_manager
+from shared.database.repositories.base import BaseRepository
+from shared.messaging import MessageConsumer
 from shared.models import (
     AlertMetric,
-    TriageMetric,
-    AutomationMetric,
     AnalyticsQuery,
     AnalyticsResponse,
+    AutomationMetric,
     DashboardData,
-    TimeRange,
-    TrendData,
-    SuccessResponse,
     ResponseMeta,
     SecurityAlert,
+    SuccessResponse,
+    TimeRange,
+    TrendData,
+    TriageMetric,
     TriageResult,
 )
-from shared.messaging import MessageConsumer
-from shared.utils import get_logger, Config
-from shared.database import get_database_manager, DatabaseManager
-from shared.database.repositories.base import BaseRepository
+from shared.utils import Config, get_logger
 
 logger = get_logger(__name__)
 config = Config()

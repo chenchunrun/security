@@ -18,11 +18,12 @@ Base repository class with common CRUD operations.
 Provides a generic repository pattern for database operations.
 """
 
-from typing import Generic, TypeVar, Type, Optional, List, Any
-from sqlalchemy import select, update, delete, func
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Any, Generic, List, Optional, Type, TypeVar
+
 from pydantic import BaseModel
 from shared.utils.logger import get_logger
+from sqlalchemy import delete, func, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = get_logger(__name__)
 
