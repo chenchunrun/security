@@ -11,7 +11,13 @@
       "Bash(pip install:*)",
       "Bash(python3:*)",
       "Bash(grep:*)",
-      "mcp__filesystem__read_text_file"
+      "mcp__filesystem__read_text_file",
+      "Bash(wc:*)",
+      "Bash(find:*)",
+      "Bash(docker:*)",
+      "Bash(curl:*)",
+      "Bash(ls:*)",
+      "Bash(chmod:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

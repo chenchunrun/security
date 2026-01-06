@@ -268,4 +268,4 @@ When adding new models:
 
 ## 📄 License
 
-MIT License - See project root for details.
+Apache License 2.0 - See project root LICENSE file for details.

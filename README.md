@@ -276,4 +276,4 @@ python main.py --sample
 
 ## 📄 许可
 
-MIT License
+Apache License 2.0 - 详见项目根目录 LICENSE 文件

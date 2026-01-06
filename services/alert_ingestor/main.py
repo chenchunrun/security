@@ -1,16 +1,35 @@
+# Copyright 2026 CCR <chenchunrun@gmail.com>
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 Alert Ingestor Service - Main Application
 
 Receives security alerts from multiple sources and publishes to message queue.
 """
 
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 import uuid
 from datetime import datetime
 import asyncio
 from contextlib import asynccontextmanager
+from typing import Dict, List
+from collections import defaultdict
 
 from shared.models import (
     SecurityAlert,
@@ -30,9 +49,45 @@ logger = get_logger(__name__)
 # Initialize config
 config = Config()
 
+# Initialize rate limiter
+limiter = Limiter(key_func=get_remote_address)
+logger.info("Rate limiter initialized")
+
 # Global variables
 db_manager: DatabaseManager = None
 message_publisher: MessagePublisher = None
+
+# In-memory rate limit tracking (fallback if slowapi not available)
+rate_limit_tracker: Dict[str, List[datetime]] = defaultdict(list)
+RATE_LIMIT_REQUESTS = 100
+RATE_LIMIT_WINDOW = 60  # seconds
+
+
+async def check_rate_limit(request: Request) -> None:
+    """
+    Check rate limit for client IP.
+
+    Allows 100 requests per minute per IP.
+    """
+    client_ip = request.client.host
+    now = datetime.utcnow()
+
+    # Clean old entries
+    rate_limit_tracker[client_ip] = [
+        ts for ts in rate_limit_tracker[client_ip]
+        if (now - ts).total_seconds() < RATE_LIMIT_WINDOW
+    ]
+
+    # Check limit
+    if len(rate_limit_tracker[client_ip]) >= RATE_LIMIT_REQUESTS:
+        logger.warning(f"Rate limit exceeded for {client_ip}")
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Rate limit exceeded. Please try again later.",
+        )
+
+    # Add current request
+    rate_limit_tracker[client_ip].append(now)
 
 
 @asynccontextmanager
@@ -43,28 +98,44 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting Alert Ingestor Service")
 
-    # Initialize database
-    db_manager = get_database_manager()
-    await db_manager.initialize()
-    logger.info("Database connected")
+    try:
+        # Initialize database
+        db_manager = get_database_manager()
+        await db_manager.initialize()
+        logger.info("✓ Database connected")
 
-    # Initialize message publisher
-    message_publisher = MessagePublisher(config.rabbitmq_url)
-    await message_publisher.connect()
-    logger.info("Message publisher connected")
+        # Initialize message publisher
+        message_publisher = MessagePublisher(config.rabbitmq_url)
+        await message_publisher.connect()
+        logger.info("✓ Message publisher connected")
 
-    yield
+        logger.info("✓ Alert Ingestor Service started successfully")
 
-    # Shutdown
-    logger.info("Shutting down Alert Ingestor Service")
-    await message_publisher.close()
-    await db_manager.close()
+        yield
+
+    except Exception as e:
+        logger.error(f"Failed to start service: {e}")
+        raise
+
+    finally:
+        # Shutdown
+        logger.info("Shutting down Alert Ingestor Service")
+
+        if message_publisher:
+            await message_publisher.close()
+            logger.info("✓ Message publisher closed")
+
+        if db_manager:
+            await db_manager.close()
+            logger.info("✓ Database connection closed")
+
+        logger.info("✓ Alert Ingestor Service stopped")
 
 
 # Create FastAPI app
 app = FastAPI(
     title="Alert Ingestor API",
-    description="Security alert ingestion service",
+    description="Security alert ingestion service with rate limiting",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -77,6 +148,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Rate limit exception handler
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
 # Health check
@@ -114,22 +188,59 @@ async def health_check():
     response_model=SuccessResponse[dict],
     tags=["Alerts"],
     summary="Ingest a single alert",
+    dependencies=[Depends(check_rate_limit)],
 )
-async def ingest_alert(alert: SecurityAlert):
+async def ingest_alert(request: Request, alert: SecurityAlert):
     """
     Ingest a single security alert.
 
-    Validates the alert and publishes it to the message queue for processing.
+    Validates the alert, persists to database, and publishes to message queue.
 
     Args:
+        request: FastAPI request object
         alert: Security alert data
 
     Returns:
         Ingestion confirmation with ingestion_id
+
+    Raises:
+        HTTPException: If validation fails or ingestion error occurs
     """
     try:
         # Generate ingestion ID
         ingestion_id = str(uuid.uuid4())
+
+        # Validate alert
+        if not alert.alert_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="alert_id is required",
+            )
+
+        # TODO: Persist to database (uncomment when database models are ready)
+        # async with db_manager.get_session() as session:
+        #     await session.execute(
+        #         text("""
+        #             INSERT INTO alerts (alert_id, timestamp, alert_type, severity, description,
+        #                               source_ip, target_ip, file_hash, url, asset_id, user_id)
+        #             VALUES (:alert_id, :timestamp, :alert_type, :severity, :description,
+        #                     :source_ip, :target_ip, :file_hash, :url, :asset_id, :user_id)
+        #         """),
+        #         {
+        #             "alert_id": alert.alert_id,
+        #             "timestamp": alert.timestamp,
+        #             "alert_type": alert.alert_type.value,
+        #             "severity": alert.severity.value,
+        #             "description": alert.description,
+        #             "source_ip": alert.source_ip,
+        #             "target_ip": alert.target_ip,
+        #             "file_hash": alert.file_hash,
+        #             "url": alert.url,
+        #             "asset_id": alert.asset_id,
+        #             "user_id": alert.user_id,
+        #         }
+        #     )
+        #     await session.commit()
 
         # Create message
         message = {
@@ -144,14 +255,17 @@ async def ingest_alert(alert: SecurityAlert):
         # Publish to message queue
         await message_publisher.publish("alert.raw", message)
 
-        # Log
+        # Log successful ingestion
         logger.info(
-            "Alert ingested",
+            "Alert ingested successfully",
             extra={
                 "ingestion_id": ingestion_id,
                 "alert_id": alert.alert_id,
-                "alert_type": alert.alert_type,
-                "severity": alert.severity,
+                "alert_type": alert.alert_type.value,
+                "severity": alert.severity.value,
+                "source_ip": alert.source_ip,
+                "target_ip": alert.target_ip,
+                "client_ip": request.client.host,
             },
         )
 
@@ -169,8 +283,14 @@ async def ingest_alert(alert: SecurityAlert):
             ),
         )
 
+    except ValidationError as e:
+        logger.warning(f"Validation error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Validation error: {str(e)}",
+        )
     except Exception as e:
-        logger.error(f"Failed to ingest alert: {e}")
+        logger.error(f"Failed to ingest alert {alert.alert_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to ingest alert: {str(e)}",

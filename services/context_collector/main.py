@@ -1,148 +1,604 @@
-"""Context Collector Service - Enriches alerts with context information."""
+# Copyright 2026 CCR <chenchunrun@gmail.com>
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+Context Collector Service - Enriches alerts with context information.
+
+This service consumes normalized alerts and enriches them with:
+- Network context (GeoIP, reputation, subnet info)
+- Asset context (CMDB data, criticality)
+- User context (directory information, roles)
+"""
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from datetime import datetime
+import uuid
 import asyncio
+import re
+import ipaddress
+from contextlib import asynccontextmanager
+from typing import Dict, Optional, Any
 
-from shared.models import SecurityAlert, EnrichedContext, NetworkContext, AssetContext
+from shared.models import SecurityAlert
 from shared.messaging import MessagePublisher, MessageConsumer
-from shared.utils import get_logger, Config, CacheManager
-from shared.database import get_database_manager
+from shared.database import get_database_manager, DatabaseManager
+from shared.utils import get_logger, Config
 
+# Initialize logger
 logger = get_logger(__name__)
+
+# Initialize config
 config = Config()
 
-db_manager = None
-publisher = None
-consumer = None
-cache = None
+# Global variables
+db_manager: DatabaseManager = None
+publisher: MessagePublisher = None
+consumer: MessageConsumer = None
+
+# Cache for context data (in-memory, use Redis in production)
+context_cache: Dict[str, tuple] = {}  # key: (data, expiry_time)
+CACHE_TTL_SECONDS = 3600  # 1 hour
 
 
-@app.on_event("startup")
-async def startup():
-    global db_manager, publisher, consumer, cache
-    db_manager = get_database_manager()
-    await db_manager.initialize()
+# =============================================================================
+# Internal Network Detection
+# =============================================================================
 
-    publisher = MessagePublisher(config.rabbitmq_url)
-    await publisher.connect()
-
-    consumer = MessageConsumer(config.rabbitmq_url, "alert.normalized")
-    await consumer.connect()
-
-    cache = CacheManager(config.redis_url)
-    await cache.connect()
-
-    asyncio.create_task(consume_alerts())
+INTERNAL_NETWORKS = [
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("127.0.0.0/8"),
+]
 
 
-@app.on_event("shutdown")
-async def shutdown():
-    await consumer.close()
-    await publisher.close()
-    await cache.close()
-    await db_manager.close()
+def is_internal_ip(ip_str: str) -> bool:
+    """
+    Check if IP address is internal/private.
+
+    Args:
+        ip_str: IP address string
+
+    Returns:
+        True if internal, False otherwise
+    """
+    try:
+        ip = ipaddress.ip_address(ip_str)
+        return any(ip in network for network in INTERNAL_NETWORKS)
+    except ValueError:
+        return False
 
 
-app = FastAPI(title="Context Collector", version="1.0.0")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+# =============================================================================
+# Network Context Collection
+# =============================================================================
 
+async def get_network_context(ip: str) -> Dict[str, Any]:
+    """
+    Collect network context for an IP address.
+
+    Args:
+        ip: IP address string
+
+    Returns:
+        Network context dictionary
+    """
+    # Check cache
+    cache_key = f"network:{ip}"
+    if cache_key in context_cache:
+        data, expiry = context_cache[cache_key]
+        if datetime.utcnow().timestamp() < expiry:
+            logger.debug(f"Network context cache hit for {ip}")
+            return data
+
+    try:
+        context = {
+            "ip_address": ip,
+            "is_internal": is_internal_ip(ip),
+            "country": None,
+            "city": None,
+            "isp": None,
+            "reputation_score": 50.0,  # 0-100, higher is better
+            "known_malicious": False,
+        }
+
+        # Enrich internal IPs
+        if context["is_internal"]:
+            context.update({
+                "subnet": get_subnet(ip),
+                "network_type": "internal",
+                "country": "Internal",
+                "reputation_score": 80.0,
+            })
+        else:
+            # TODO: Implement external IP enrichment
+            # - GeoIP lookup (MaxMind, IPInfo)
+            # - WHOIS data
+            # - Threat intelligence feeds
+            # - Reputation services (AlienVault OTX, CrowdStrike)
+
+            context.update({
+                "network_type": "external",
+                "country": "Unknown",  # Would be from GeoIP
+                "city": None,
+                "isp": None,
+            })
+
+        # Cache result
+        expiry_time = datetime.utcnow().timestamp() + CACHE_TTL_SECONDS
+        context_cache[cache_key] = (context, expiry_time)
+
+        logger.debug(
+            f"Network context collected for {ip}",
+            extra={"ip": ip, "is_internal": context["is_internal"]}
+        )
+
+        return context
+
+    except Exception as e:
+        logger.error(f"Failed to collect network context for {ip}: {e}")
+        return {
+            "ip_address": ip,
+            "is_internal": is_internal_ip(ip),
+            "country": None,
+            "reputation_score": 50.0,
+            "error": str(e),
+        }
+
+
+def get_subnet(ip: str) -> Optional[str]:
+    """
+    Get subnet for internal IP.
+
+    Args:
+        ip: IP address string
+
+    Returns:
+        Subnet in CIDR notation or None
+    """
+    try:
+        ip_obj = ipaddress.ip_address(ip)
+
+        # Determine subnet based on IP class
+        if ip_obj in ipaddress.ip_network("10.0.0.0/8"):
+            # Class A private: /8
+            return f"{ip_obj.network_address}/8"
+        elif ip_obj in ipaddress.ip_network("172.16.0.0/12"):
+            # Class B private: /12
+            return f"{ip_obj.network_address}/12"
+        elif ip_obj in ipaddress.ip_network("192.168.0.0/16"):
+            # Class C private: /24 (typical)
+            return f"{'.'.join(ip.split('.')[:3])}.0/24"
+        elif ip_obj in ipaddress.ip_network("127.0.0.0/8"):
+            return "127.0.0.0/8"
+
+        return None
+    except ValueError:
+        return None
+
+
+# =============================================================================
+# Asset Context Collection
+# =============================================================================
+
+async def get_asset_context(asset_id: str) -> Dict[str, Any]:
+    """
+    Collect asset context from CMDB.
+
+    Args:
+        asset_id: Asset identifier
+
+    Returns:
+        Asset context dictionary
+    """
+    # Check cache
+    cache_key = f"asset:{asset_id}"
+    if cache_key in context_cache:
+        data, expiry = context_cache[cache_key]
+        if datetime.utcnow().timestamp() < expiry:
+            logger.debug(f"Asset context cache hit for {asset_id}")
+            return data
+
+    try:
+        # TODO: Implement actual CMDB lookup
+        # Examples:
+        # - ServiceNow CMDB API
+        # - BMC Atrium CMDB
+        # - iTop CMDB
+        # - Custom asset database
+
+        context = {
+            "asset_id": asset_id,
+            "asset_name": f"ASSET-{asset_id}",
+            "asset_type": "server",  # server, workstation, network_device, etc.
+            "os_type": "Linux",  # Linux, Windows, macOS
+            "os_version": "Ubuntu 22.04",
+            "criticality": "medium",  # critical, high, medium, low
+            "owner": "IT Department",
+            "location": "Data Center 1",
+            "network_zone": "DMZ",
+            "business_unit": "Engineering",
+            "environment": "production",  # production, staging, development
+        }
+
+        # Cache result
+        expiry_time = datetime.utcnow().timestamp() + CACHE_TTL_SECONDS
+        context_cache[cache_key] = (context, expiry_time)
+
+        logger.debug(f"Asset context collected for {asset_id}")
+        return context
+
+    except Exception as e:
+        logger.error(f"Failed to collect asset context for {asset_id}: {e}")
+        return {
+            "asset_id": asset_id,
+            "asset_name": asset_id,
+            "criticality": "unknown",
+            "error": str(e),
+        }
+
+
+# =============================================================================
+# User Context Collection
+# =============================================================================
+
+async def get_user_context(user_id: str) -> Dict[str, Any]:
+    """
+    Collect user context from directory service.
+
+    Args:
+        user_id: User identifier (username, email, or UPN)
+
+    Returns:
+        User context dictionary
+    """
+    # Check cache
+    cache_key = f"user:{user_id}"
+    if cache_key in context_cache:
+        data, expiry = context_cache[cache_key]
+        if datetime.utcnow().timestamp() < expiry:
+            logger.debug(f"User context cache hit for {user_id}")
+            return data
+
+    try:
+        # TODO: Implement actual directory lookup
+        # Examples:
+        # - Active Directory LDAP
+        # - Azure AD Graph API
+        # - Okta API
+        # - LDAP server
+
+        context = {
+            "user_id": user_id,
+            "username": user_id,
+            "full_name": "User " + user_id,
+            "email": f"{user_id}@company.com",
+            "department": "Engineering",
+            "title": "Software Engineer",
+            "manager": None,
+            "location": "HQ",
+            "employee_type": "employee",  # employee, contractor, vendor
+            "account_status": "active",  # active, disabled, locked
+            "last_login": datetime.utcnow().isoformat(),
+            "groups": ["developers", "ssh-users"],
+            "privilege_level": "standard",  # admin, elevated, standard, restricted
+        }
+
+        # Cache result
+        expiry_time = datetime.utcnow().timestamp() + CACHE_TTL_SECONDS
+        context_cache[cache_key] = (context, expiry_time)
+
+        logger.debug(f"User context collected for {user_id}")
+        return context
+
+    except Exception as e:
+        logger.error(f"Failed to collect user context for {user_id}: {e}")
+        return {
+            "user_id": user_id,
+            "username": user_id,
+            "privilege_level": "unknown",
+            "error": str(e),
+        }
+
+
+# =============================================================================
+# Context Enrichment
+# =============================================================================
+
+async def enrich_alert(alert: SecurityAlert) -> Dict[str, Any]:
+    """
+    Enrich alert with context information.
+
+    Args:
+        alert: SecurityAlert object
+
+    Returns:
+        Enrichment data dictionary
+    """
+    enrichment = {
+        "alert_id": alert.alert_id,
+        "enriched_at": datetime.utcnow().isoformat(),
+        "enrichment_sources": [],
+    }
+
+    # Collect network context
+    if alert.source_ip:
+        try:
+            source_context = await get_network_context(alert.source_ip)
+            enrichment["source_network"] = source_context
+            enrichment["enrichment_sources"].append("source_network")
+        except Exception as e:
+            logger.error(f"Failed to enrich source network: {e}")
+
+    if alert.target_ip:
+        try:
+            target_context = await get_network_context(alert.target_ip)
+            enrichment["target_network"] = target_context
+            enrichment["enrichment_sources"].append("target_network")
+        except Exception as e:
+            logger.error(f"Failed to enrich target network: {e}")
+
+    # Collect asset context
+    if alert.asset_id:
+        try:
+            asset_context = await get_asset_context(alert.asset_id)
+            enrichment["asset"] = asset_context
+            enrichment["enrichment_sources"].append("asset")
+        except Exception as e:
+            logger.error(f"Failed to enrich asset: {e}")
+
+    # Collect user context
+    if alert.user_id:
+        try:
+            user_context = await get_user_context(alert.user_id)
+            enrichment["user"] = user_context
+            enrichment["enrichment_sources"].append("user")
+        except Exception as e:
+            logger.error(f"Failed to enrich user: {e}")
+
+    return enrichment
+
+
+# =============================================================================
+# Cache Management
+# =============================================================================
+
+async def cleanup_cache():
+    """
+    Periodic cache cleanup task.
+    Removes expired entries from cache.
+    """
+    while True:
+        try:
+            now = datetime.utcnow().timestamp()
+            expired_keys = [
+                key for key, (_, expiry) in context_cache.items()
+                if now >= expiry
+            ]
+
+            for key in expired_keys:
+                del context_cache[key]
+
+            if expired_keys:
+                logger.debug(f"Cleaned up {len(expired_keys)} expired cache entries")
+
+            # Sleep for 5 minutes
+            await asyncio.sleep(300)
+
+        except Exception as e:
+            logger.error(f"Cache cleanup failed: {e}")
+            await asyncio.sleep(60)
+
+
+# =============================================================================
+# FastAPI Application
+# =============================================================================
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager."""
+    global db_manager, publisher, consumer
+
+    logger.info("Starting Context Collector Service")
+
+    try:
+        # Initialize database
+        db_manager = get_database_manager()
+        await db_manager.initialize()
+        logger.info("✓ Database connected")
+
+        # Initialize message publisher
+        publisher = MessagePublisher(config.rabbitmq_url)
+        await publisher.connect()
+        logger.info("✓ Message publisher connected")
+
+        # Initialize message consumer
+        consumer = MessageConsumer(config.rabbitmq_url, "alert.normalized")
+        await consumer.connect()
+        logger.info("✓ Message consumer connected")
+
+        # Start cache cleanup task
+        asyncio.create_task(cleanup_cache())
+        logger.info("✓ Cache cleanup task started")
+
+        logger.info("✓ Context Collector Service started successfully")
+
+        yield
+
+    except Exception as e:
+        logger.error(f"Failed to start service: {e}")
+        raise
+
+    finally:
+        logger.info("Shutting down Context Collector Service")
+
+        if consumer:
+            await consumer.close()
+            logger.info("✓ Message consumer closed")
+
+        if publisher:
+            await publisher.close()
+            logger.info("✓ Message publisher closed")
+
+        if db_manager:
+            await db_manager.close()
+            logger.info("✓ Database connection closed")
+
+        logger.info("✓ Context Collector Service stopped")
+
+
+# Create FastAPI app
+app = FastAPI(
+    title="Context Collector API",
+    description="Enriches alerts with network, asset, and user context",
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# =============================================================================
+# Background Task: Message Consumer
+# =============================================================================
 
 async def consume_alerts():
     """Consume normalized alerts and enrich with context."""
     async def process_message(message: dict):
         try:
-            alert = SecurityAlert(**message["payload"])
+            payload = message.get("payload", {})
+            message_id = message.get("message_id", "unknown")
 
-            # Collect context
-            context = await collect_context(alert)
+            logger.info(f"Processing message {message_id}")
 
-            # Publish enriched alert
-            await publisher.publish("alert.enriched", {
+            # Parse alert
+            alert = SecurityAlert(**payload)
+
+            # Enrich with context
+            enrichment = await enrich_alert(alert)
+
+            # Create enriched message
+            enriched_message = {
                 "message_id": str(uuid.uuid4()),
                 "message_type": "alert.enriched",
+                "correlation_id": alert.alert_id,
+                "original_message_id": message_id,
+                "timestamp": datetime.utcnow().isoformat(),
+                "version": "1.0",
                 "payload": {
                     "alert": alert.model_dump(),
-                    "context": context.model_dump(),
+                    "enrichment": enrichment,
                 },
-                "timestamp": datetime.utcnow().isoformat(),
-            })
+            }
 
-            logger.info(f"Enriched alert {alert.alert_id}")
+            # Publish enriched alert
+            await publisher.publish("alert.enriched", enriched_message)
+
+            logger.info(
+                "Alert enriched successfully",
+                extra={
+                    "message_id": message_id,
+                    "alert_id": alert.alert_id,
+                    "enrichment_sources": len(enrichment.get("enrichment_sources", [])),
+                },
+            )
 
         except Exception as e:
-            logger.error(f"Context collection failed: {e}")
+            logger.error(f"Context enrichment failed: {e}", exc_info=True)
+            # TODO: Send to dead letter queue
 
+    # Start consuming
     await consumer.consume(process_message)
 
 
-async def collect_context(alert: SecurityAlert) -> EnrichedContext:
-    """Collect network, asset, and user context."""
-    context = EnrichedContext(alert_id=alert.alert_id)
+# =============================================================================
+# API Endpoints
+# =============================================================================
 
-    # Collect network context
-    if alert.source_ip:
-        context.source_network = await get_network_context(alert.source_ip)
-    if alert.target_ip:
-        context.target_network = await get_network_context(alert.target_ip)
-
-    # Collect asset context
-    if alert.asset_id:
-        context.asset = await get_asset_context(alert.asset_id)
-
-    # Collect user context
-    if alert.user_id:
-        context.user = await get_user_context(alert.user_id)
-
-    context.enrichment_sources = ["network", "asset", "user"]
-
-    return context
-
-
-async def get_network_context(ip: str) -> NetworkContext:
-    """Get network context for IP."""
-    # Check cache first
-    cache_key = f"network:{ip}"
-    cached = await cache.get(cache_key)
-    if cached:
-        return NetworkContext(**cached)
-
-    # TODO: Implement actual network context collection
-    # (GeoIP, WHOIS, reputation, etc.)
-    context = NetworkContext(
-        ip_address=ip,
-        is_internal=ip.startswith(("10.", "192.168.", "172.16.")),
-        reputation_score=50.0,
-    )
-
-    # Cache for 1 hour
-    await cache.set(cache_key, context.model_dump(), ttl=3600)
-
-    return context
-
-
-async def get_asset_context(asset_id: str) -> AssetContext:
-    """Get asset context."""
-    # TODO: Implement actual CMDB lookup
-    return AssetContext(
-        asset_id=asset_id,
-        asset_name=f"ASSET-{asset_id}",
-        asset_type="unknown",
-        criticality="medium",
-    )
-
-
-async def get_user_context(user_id: str):
-    """Get user context."""
-    # TODO: Implement actual directory lookup
-    return None
-
-
-@app.get("/health")
+@app.get("/health", tags=["Health"])
 async def health_check():
-    return {"status": "healthy", "service": "context-collector"}
+    """Health check endpoint."""
+    try:
+        return {
+            "status": "healthy",
+            "service": "context-collector",
+            "timestamp": datetime.utcnow().isoformat(),
+            "checks": {
+                "database": "connected" if db_manager else "disconnected",
+                "message_queue_consumer": "connected" if consumer else "disconnected",
+                "message_queue_publisher": "connected" if publisher else "disconnected",
+                "cache_size": len(context_cache),
+            },
+        }
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return {
+            "status": "unhealthy",
+            "service": "context-collector",
+            "error": str(e),
+        }
+
+
+@app.get("/metrics", tags=["Metrics"])
+async def get_metrics():
+    """Get enrichment metrics."""
+    return {
+        "cache_size": len(context_cache),
+        "cache_ttl_seconds": CACHE_TTL_SECONDS,
+        "service": "context-collector",
+    }
+
+
+@app.post("/api/v1/enrich", tags=["Enrichment"])
+async def manual_enrich(alert: SecurityAlert):
+    """
+    Manually enrich an alert (for testing).
+
+    Args:
+        alert: SecurityAlert to enrich
+
+    Returns:
+        Enrichment data
+    """
+    try:
+        enrichment = await enrich_alert(alert)
+        return {
+            "success": True,
+            "data": enrichment,
+        }
+    except Exception as e:
+        logger.error(f"Manual enrichment failed: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+        }
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host=config.host, port=config.port)
+
+    uvicorn.run(
+        "main:app",
+        host=config.host,
+        port=config.port,
+        reload=config.debug,
+        log_level=config.log_level.lower(),
+    )
