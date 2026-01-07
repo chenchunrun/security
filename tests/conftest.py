@@ -234,6 +234,31 @@ def generate_alert_data():
     return _generate
 
 
+@pytest.fixture
+def valid_alert_data():
+    """Valid alert data for testing."""
+    return {
+        "alert_id": f"ALT-{uuid.uuid4()}",
+        "timestamp": datetime.utcnow().isoformat(),
+        "alert_type": "malware",
+        "severity": "high",
+        "description": "Test malware alert",
+        "source_ip": "45.33.32.156",
+        "target_ip": "10.0.0.50",
+        "file_hash": "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
+        "domain": "malicious.example.com",
+        "url": "http://malicious.example.com/payload.exe",
+    }
+
+
+@pytest.fixture
+def mock_publisher():
+    """Mock message publisher for testing."""
+    publisher = AsyncMock()
+    publisher.publish = AsyncMock()
+    return publisher
+
+
 # Cleanup fixtures
 
 

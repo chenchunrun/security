@@ -33,31 +33,44 @@ from shared.models import AlertType, SecurityAlert, Severity
 from services.alert_ingestor.main import app
 
 
+# Module-level fixtures available to all test classes
+
+
+@pytest.fixture
+def client():
+    """Test client for alert ingestor (shared across all test classes)."""
+    return TestClient(app)
+
+
+@pytest.fixture
+def valid_alert_data():
+    """Valid alert data for testing (shared across all test classes)."""
+    return {
+        "alert_id": "ALT-001",
+        "timestamp": datetime.utcnow().isoformat(),
+        "alert_type": "malware",
+        "severity": "high",
+        "title": "Test Malware Alert",
+        "description": "Test alert for unit testing",
+        "source_ip": "192.168.1.100",
+        "target_ip": "10.0.0.50",
+        "file_hash": "abc123def456",
+        "asset_id": "SERVER-001",
+        "user_id": "admin",
+    }
+
+
+@pytest.fixture
+def mock_publisher():
+    """Mock message publisher for testing (shared across all test classes)."""
+    publisher = AsyncMock()
+    publisher.publish = AsyncMock()
+    return publisher
+
+
 @pytest.mark.unit
 class TestAlertIngestor:
     """Test alert ingestion functionality."""
-
-    @pytest.fixture
-    def client(self):
-        """Test client for alert ingestor."""
-        return TestClient(app)
-
-    @pytest.fixture
-    def valid_alert_data(self):
-        """Valid alert data for testing."""
-        return {
-            "alert_id": "ALT-001",
-            "timestamp": datetime.utcnow().isoformat(),
-            "alert_type": "malware",
-            "severity": "high",
-            "title": "Test Malware Alert",
-            "description": "Test alert for unit testing",
-            "source_ip": "192.168.1.100",
-            "target_ip": "10.0.0.50",
-            "file_hash": "abc123def456",
-            "asset_id": "SERVER-001",
-            "user_id": "admin",
-        }
 
     def test_health_check(self, client):
         """Test health check endpoint."""
