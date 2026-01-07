@@ -28,10 +28,9 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from fastapi.testclient import TestClient
-
-from services.alert_ingestor.main import app
 from shared.models import AlertType, SecurityAlert, Severity
 
+from services.alert_ingestor.main import app
 
 # Module-level fixtures available to all test classes
 
