@@ -19,14 +19,13 @@ Provides application configuration from environment variables and YAML files.
 """
 
 import os
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
-import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
 from pydantic_settings import BaseSettings
 
 
-class AppConfig(BaseSettings):
+class Config(BaseSettings):
     """Application configuration from environment variables."""
 
     # Application
@@ -103,91 +102,15 @@ class AppConfig(BaseSettings):
     jwt_algorithm: str = "HS256"
 
     model_config = ConfigDict(env_file=".env", case_sensitive=False)
-    """Configuration manager."""
-
-    def __init__(self, config_path: Optional[str] = None):
-        """
-        Initialize configuration.
-
-        Args:
-            config_path: Optional path to YAML config file
-        """
-        self.app_config = AppConfig()
-        self.yaml_config: Dict[str, Any] = {}
-
-        if config_path:
-            self._load_yaml(config_path)
-
-    def _load_yaml(self, path: str):
-        """Load YAML configuration file."""
-        try:
-            with open(path, "r") as f:
-                self.yaml_config = yaml.safe_load(f)
-        except FileNotFoundError:
-            pass
-
-    def get(self, key: str, default: Any = None) -> Any:
-        """
-        Get configuration value.
-
-        Checks YAML config first, then environment variables.
-
-        Args:
-            key: Configuration key (dot-separated path)
-            default: Default value if not found
-
-        Returns:
-            Configuration value
-        """
-        # Check YAML config
-        keys = key.split(".")
-        value = self.yaml_config
-        for k in keys:
-            if isinstance(value, dict) and k in value:
-                value = value[k]
-            else:
-                value = None
-                break
-
-        if value is not None:
-            return value
-
-        # Check environment variables
-        return os.getenv(key.upper(), default)
-
-    @property
-    def database_url(self) -> str:
-        """Get database URL."""
-        return self.app_config.database_url
-
-    @property
-    def redis_url(self) -> str:
-        """Get Redis URL."""
-        return self.app_config.redis_url
-
-    @property
-    def rabbitmq_url(self) -> str:
-        """Get RabbitMQ URL."""
-        return self.app_config.rabbitmq_url
-
-    @property
-    def host(self) -> str:
-        """Get server host."""
-        return self.app_config.host
-
-    @property
-    def port(self) -> int:
-        """Get server port."""
-        return self.app_config.port
 
 
 # Global config instance
-config: Optional[Config] = None
+_config: Optional[Config] = None
 
 
-def get_config(config_path: Optional[str] = None) -> Config:
+def get_config() -> Config:
     """Get global configuration instance."""
-    global config
-    if config is None:
-        config = Config(config_path)
-    return config
+    global _config
+    if _config is None:
+        _config = Config()
+    return _config
