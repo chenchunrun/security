@@ -11,6 +11,7 @@ langchain-chroma==0.1.4
 # Web Framework
 fastapi==0.115.0
 uvicorn[standard]==0.30.0
+slowapi==0.1.9
 
 # Database
 sqlalchemy==2.0.35
