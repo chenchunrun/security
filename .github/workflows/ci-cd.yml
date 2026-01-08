@@ -96,21 +96,18 @@ jobs:
     strategy:
       matrix:
         service:
-          - alert-ingestor
-          - alert-normalizer
-          - context-collector
-          - threat-intel-aggregator
-          - llm-router
-          - ai-triage-agent
-          - similarity-search
-          - workflow-engine
-          - automation-orchestrator
-          - notification-service
-          - data-analytics
-          - reporting-service
-          - configuration-service
-          - monitoring-metrics
-          - web-dashboard
+          - ai_triage_agent
+          - alert_ingestor
+          - alert_normalizer
+          - automation_orchestrator
+          - configuration_service
+          - data_analytics
+          - monitoring_metrics
+          - notification_service
+          - reporting_service
+          - similarity_search
+          - web_dashboard
+          - workflow_engine
 
     steps:
     - name: Checkout code
