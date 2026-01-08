@@ -31,7 +31,13 @@ import pytest
 import pytest_asyncio
 
 # Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
+# Add services directory to path for shared module imports
+services_dir = project_root / "services"
+if str(services_dir) not in sys.path:
+    sys.path.insert(0, str(services_dir))
 
 import uuid
 from datetime import datetime, timedelta
