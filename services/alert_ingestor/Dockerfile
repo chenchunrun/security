@@ -12,9 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Alert Ingestor Service - Dockerfile
-"""
+# Alert Ingestor Service - Dockerfile
+# Receives security alerts from multiple sources and publishes to message queue
 
 FROM python:3.11-slim
 

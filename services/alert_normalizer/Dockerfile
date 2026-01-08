@@ -12,9 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Alert Normalizer Service - Dockerfile
-"""
+# Alert Normalizer Service - Dockerfile
+# Normalizes security alerts from various sources to a common format
 
 FROM python:3.11-slim
 
