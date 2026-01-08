@@ -17,16 +17,17 @@
 # =============================================================================
 FROM node:20-alpine AS frontend-builder
 
+# Build context is ./services/web_dashboard
 WORKDIR /frontend
 
-# Copy frontend package files
-COPY services/web_dashboard/package.json services/web_dashboard/package-lock.json* ./
+# Copy frontend package files from current directory
+COPY package.json package-lock.json* ./
 
 # Install dependencies
 RUN npm ci
 
-# Copy frontend source
-COPY services/web_dashboard/ ./
+# Copy frontend source (current directory)
+COPY . ./
 
 # Build frontend
 RUN npm run build
@@ -45,15 +46,15 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
-COPY services/web_dashboard/requirements.txt .
+# Install Python dependencies (from current directory)
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy shared code
-COPY shared/ ./shared/
+# Copy shared module (parent directory relative to build context)
+COPY ../shared /app/shared
 
-# Copy backend code
-COPY services/web_dashboard/ ./services/web_dashboard/
+# Copy backend code (current directory)
+COPY . /app/services/web_dashboard
 
 # Copy built frontend from stage 1
 COPY --from=frontend-builder /frontend/dist /app/static
@@ -69,4 +70,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
 
 # Start FastAPI backend
-CMD ["python", "services/web_dashboard/main.py"]
+CMD ["python", "main.py"]
