@@ -29,17 +29,18 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
-COPY services/requirements.txt /app/
+# Build context is ./services/data_analytics, so use relative paths
+COPY requirements.txt /app/
 
 # Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r /app/requirements.txt
 
-# Copy shared module
-COPY services/shared /app/services/shared
+# Copy shared module (parent directory relative to build context)
+COPY ../shared /app/services/shared
 
-# Copy service code
-COPY services/data_analytics /app/services/data_analytics
+# Copy service code (current directory)
+COPY . /app/services/data_analytics
 
 # Create non-root user
 RUN useradd -m -u 1000 triage && \
