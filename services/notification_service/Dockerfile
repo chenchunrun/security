@@ -17,6 +17,11 @@ FROM python:3.11-slim
 # Set working directory
 WORKDIR /app
 
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app/services/shared:/app/services/notification_service:/app
+
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
@@ -25,16 +30,17 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
-COPY services/notification_service/requirements.txt .
+COPY services/requirements.txt /app/
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r /app/requirements.txt
 
 # Copy shared module
-COPY shared/ ./shared/
+COPY services/shared /app/services/shared
 
 # Copy service code
-COPY services/notification_service/ .
+COPY services/notification_service /app/services/notification_service
 
 # Create non-root user
 RUN useradd -m -u 1000 triage && \
