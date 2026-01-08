@@ -27,7 +27,7 @@ To fix: Upgrade test dependencies to match requirements.txt (FastAPI 0.115.0+)
 """
 
 from datetime import datetime
-from unittest.mock import AsyncMock, Mock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 from shared.models import AlertType, SecurityAlert, Severity
@@ -66,8 +66,9 @@ def setup_globals():
 @pytest.fixture
 def client():
     """Test client for alert ingestor (shared across all test classes)."""
-    from services.alert_ingestor.main import app as fastapi_app
     from starlette.testclient import TestClient
+
+    from services.alert_ingestor.main import app as fastapi_app
 
     # Create test client - app must be first positional argument
     return TestClient(fastapi_app)
@@ -185,8 +186,10 @@ class TestRateLimiting:
     @pytest.fixture
     def client(self):
         """Test client for alert ingestor."""
-        from services.alert_ingestor.main import app as fastapi_app
         from starlette.testclient import TestClient
+
+        from services.alert_ingestor.main import app as fastapi_app
+
         return TestClient(fastapi_app)
 
     def test_rate_limit_enforcement(self, client, valid_alert_data):
@@ -218,8 +221,10 @@ class TestAlertValidation:
     @pytest.fixture
     def client(self):
         """Test client for alert ingestor."""
-        from services.alert_ingestor.main import app as fastapi_app
         from starlette.testclient import TestClient
+
+        from services.alert_ingestor.main import app as fastapi_app
+
         return TestClient(fastapi_app)
 
     @pytest.mark.parametrize(
