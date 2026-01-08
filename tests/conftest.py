@@ -75,31 +75,23 @@ def mock_config():
 
 
 @pytest.fixture
-async def mock_db():
-    """Mock database session for testing."""
-    from shared.database import get_database_manager
-    from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-    from sqlalchemy.orm import sessionmaker
+def mock_db():
+    """Mock database session for testing.
 
-    # Use in-memory SQLite for testing
-    engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        echo=False,
-    )
+    This fixture provides a simple mock database object for tests.
+    Currently the project uses Pydantic models, not SQLAlchemy ORM models.
+    If you need to use SQLAlchemy in the future, update this fixture.
+    """
+    from unittest.mock import MagicMock
 
-    async with engine.begin() as conn:
-        # Create all tables
-        from shared.database.base import Base
+    # Create a simple mock database manager
+    db = MagicMock()
+    db.execute_query = MagicMock(return_value=[])
+    db.execute = MagicMock()
+    db.commit = MagicMock()
+    db.rollback = MagicMock()
 
-        await conn.run_sync(Base.metadata.create_all)
-
-    # Create session
-    async_session_maker = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-
-    async with async_session_maker() as session:
-        yield session
-
-    await engine.dispose()
+    return db
 
 
 @pytest.fixture
