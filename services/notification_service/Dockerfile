@@ -20,9 +20,13 @@ WORKDIR /app
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app/services/shared:/app/services/notification_service:/app
+    PYTHONPATH=/app/services:/app
 
 # Install system dependencies
+# Use China mirrors for faster downloads
+RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources || \
+    sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list.d/debian.sources || \
+    sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list.d/debian.sources
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
@@ -31,17 +35,17 @@ RUN apt-get update && apt-get install -y \
 
 # Copy requirements first for better caching
 # Build context is ./services/notification_service, so use relative paths
-COPY requirements.txt /app/
+COPY ./services/notification_service/requirements.txt /app/
 
 # Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r /app/requirements.txt
 
 # Copy shared module (parent directory relative to build context)
-COPY ../shared /app/services/shared
+COPY ./services/shared /app/services/shared
 
 # Copy service code (current directory)
-COPY . /app/services/notification_service
+COPY ./services/notification_service /app/services/notification_service
 
 # Create non-root user
 RUN useradd -m -u 1000 triage && \
@@ -56,4 +60,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
 
 # Run the application
-CMD ["python", "main.py"]
+CMD ["python", "services/notification_service/main.py"]

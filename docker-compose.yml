@@ -207,11 +207,13 @@ services:
     container_name: security-triage-alert-ingestor
     environment:
       # Database
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@localhost:5432/security_triage}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@postgres:5432/security_triage}
       # Redis
-      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@localhost:6379/0}
+      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@redis:6379/0}
       # RabbitMQ
-      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://admin:${RABBITMQ_PASSWORD:-rabbitmq_password_change_me}@localhost:5672/}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://admin:${RABBITMQ_PASSWORD:-rabbitmq_password_change_me}@rabbitmq:5672/}
+      # Security
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-this-to-a-random-secret-key-in-production}
       # Application
       HOST: 0.0.0.0
       PORT: 8000
@@ -227,7 +229,7 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: curl -f http://localhost:8000/health || exit 1
+      test: python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
       interval: 10s
       timeout: 5s
       retries: 5
@@ -244,11 +246,13 @@ services:
     container_name: security-triage-alert-normalizer
     environment:
       # Database
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@localhost:5432/security_triage}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@postgres:5432/security_triage}
       # Redis
-      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@localhost:6379/0}
+      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@redis:6379/0}
       # RabbitMQ
-      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://admin:${RABBITMQ_PASSWORD:-rabbitmq_password_change_me}@localhost:5672/}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://admin:${RABBITMQ_PASSWORD:-rabbitmq_password_change_me}@rabbitmq:5672/}
+      # Security
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-this-to-a-random-secret-key-in-production}
       # Application
       HOST: 0.0.0.0
       PORT: 8000
@@ -266,7 +270,7 @@ services:
       alert-ingestor:
         condition: service_healthy
     healthcheck:
-      test: curl -f http://localhost:8000/health || exit 1
+      test: python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
       interval: 10s
       timeout: 5s
       retries: 5
@@ -287,11 +291,13 @@ services:
     container_name: security-triage-context-collector
     environment:
       # Database
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@localhost:5432/security_triage}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@postgres:5432/security_triage}
       # Redis
-      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@localhost:6379/0}
+      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@redis:6379/0}
       # RabbitMQ
-      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://admin:${RABBITMQ_PASSWORD:-rabbitmq_password_change_me}@localhost:5672/}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://admin:${RABBITMQ_PASSWORD:-rabbitmq_password_change_me}@rabbitmq:5672/}
+      # Security
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-this-to-a-random-secret-key-in-production}
       # Application
       HOST: 0.0.0.0
       PORT: 8000
@@ -309,7 +315,7 @@ services:
       alert-normalizer:
         condition: service_healthy
     healthcheck:
-      test: curl -f http://localhost:8000/health || exit 1
+      test: python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
       interval: 10s
       timeout: 5s
       retries: 5
@@ -326,11 +332,13 @@ services:
     container_name: security-triage-threat-intel-aggregator
     environment:
       # Database
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@localhost:5432/security_triage}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@postgres:5432/security_triage}
       # Redis
-      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@localhost:6379/0}
+      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@redis:6379/0}
       # RabbitMQ
-      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://admin:${RABBITMQ_PASSWORD:-rabbitmq_password_change_me}@localhost:5672/}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://admin:${RABBITMQ_PASSWORD:-rabbitmq_password_change_me}@rabbitmq:5672/}
+      # Security
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-this-to-a-random-secret-key-in-production}
       # Threat Intel API Keys
       VIRUSTOTAL_API_KEY: ${VIRUSTOTAL_API_KEY:-your_vt_key}
       ABUSECH_API_KEY: ${ABUSECH_API_KEY:-your_abusech_key}
@@ -351,7 +359,7 @@ services:
       context-collector:
         condition: service_healthy
     healthcheck:
-      test: curl -f http://localhost:8000/health || exit 1
+      test: python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
       interval: 10s
       timeout: 5s
       retries: 5
@@ -368,9 +376,13 @@ services:
     container_name: security-triage-llm-router
     environment:
       # Database
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@localhost:5432/security_triage}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@postgres:5432/security_triage}
+      # Redis
+      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@redis:6379/0}
       # RabbitMQ
-      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://admin:${RABBITMQ_PASSWORD:-rabbitmq_password_change_me}@localhost:5672/}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://admin:${RABBITMQ_PASSWORD:-rabbitmq_password_change_me}@rabbitmq:5672/}
+      # Security
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-this-to-a-random-secret-key-in-production}
       # MaaS Configuration
       DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-http://internal-maas.deepseek/v1}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-internal-key-123}
@@ -391,7 +403,7 @@ services:
       threat-intel-aggregator:
         condition: service_healthy
     healthcheck:
-      test: curl -f http://localhost:8000/health || exit 1
+      test: python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
       interval: 10s
       timeout: 5s
       retries: 5
@@ -412,11 +424,13 @@ services:
     container_name: security-triage-ai-triage-agent
     environment:
       # Database
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@localhost:5432/security_triage}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@postgres:5432/security_triage}
       # Redis
-      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@localhost:6379/0}
+      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@redis:6379/0}
       # RabbitMQ
-      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://admin:${RABBITMQ_PASSWORD:-rabbitmq_password_change_me}@localhost:5672/}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://admin:${RABBITMQ_PASSWORD:-rabbitmq_password_change_me}@rabbitmq:5672/}
+      # Security
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-this-to-a-random-secret-key-in-production}
       # LLM Router
       LLM_ROUTER_URL: ${LLM_ROUTER_URL:-http://llm-router:8000}
       # MaaS Configuration (fallback if router unavailable)
@@ -441,7 +455,7 @@ services:
       llm-router:
         condition: service_healthy
     healthcheck:
-      test: curl -f http://localhost:8000/health || exit 1
+      test: python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
       interval: 10s
       timeout: 5s
       retries: 5
@@ -458,11 +472,11 @@ services:
     container_name: security-triage-similarity-search
     environment:
       # Database
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@localhost:5432/security_triage}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@postgres:5432/security_triage}
       # Redis
-      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@localhost:6379/0}
+      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@redis:6379/0}
       # RabbitMQ
-      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://admin:${RABBITMQ_PASSWORD:-rabbitmq_password_change_me}@localhost:5672/}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://admin:${RABBITMQ_PASSWORD:-rabbitmq_password_change_me}@rabbitmq:5672/}
       # ChromaDB
       CHROMADB_HOST: ${CHROMADB_HOST:-chromadb}
       CHROMADB_PORT: ${CHROMADB_PORT:-8000}
@@ -508,11 +522,11 @@ services:
     container_name: security-triage-workflow-engine
     environment:
       # Database
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@localhost:5432/security_triage}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@postgres:5432/security_triage}
       # Redis
-      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@localhost:6379/0}
+      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@redis:6379/0}
       # RabbitMQ
-      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://admin:${RABBITMQ_PASSWORD:-rabbitmq_password_change_me}@localhost:5672/}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://admin:${RABBITMQ_PASSWORD:-rabbitmq_password_change_me}@rabbitmq:5672/}
       # Application
       HOST: 0.0.0.0
       PORT: 8000
@@ -530,7 +544,7 @@ services:
       ai-triage-agent:
         condition: service_healthy
     healthcheck:
-      test: curl -f http://localhost:8000/health || exit 1
+      test: python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
       interval: 10s
       timeout: 5s
       retries: 5
@@ -547,11 +561,11 @@ services:
     container_name: security-triage-automation-orchestrator
     environment:
       # Database
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@localhost:5432/security_triage}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@postgres:5432/security_triage}
       # Redis
-      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@localhost:6379/0}
+      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@redis:6379/0}
       # RabbitMQ
-      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://admin:${RABBITMQ_PASSWORD:-rabbitmq_password_change_me}@localhost:5672/}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://admin:${RABBITMQ_PASSWORD:-rabbitmq_password_change_me}@rabbitmq:5672/}
       # Application
       HOST: 0.0.0.0
       PORT: 8000
@@ -569,7 +583,7 @@ services:
       workflow-engine:
         condition: service_healthy
     healthcheck:
-      test: curl -f http://localhost:8000/health || exit 1
+      test: python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
       interval: 10s
       timeout: 5s
       retries: 5
@@ -586,11 +600,11 @@ services:
     container_name: security-triage-notification-service
     environment:
       # Database
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@localhost:5432/security_triage}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@postgres:5432/security_triage}
       # Redis
-      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@localhost:6379/0}
+      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@redis:6379/0}
       # RabbitMQ
-      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://admin:${RABBITMQ_PASSWORD:-rabbitmq_password_change_me}@localhost:5672/}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://admin:${RABBITMQ_PASSWORD:-rabbitmq_password_change_me}@rabbitmq:5672/}
       # Notification Channels
       SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
       SMTP_PORT: ${SMTP_PORT:-587}
@@ -614,7 +628,7 @@ services:
       automation-orchestrator:
         condition: service_healthy
     healthcheck:
-      test: curl -f http://localhost:8000/health || exit 1
+      test: python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
       interval: 10s
       timeout: 5s
       retries: 5
@@ -635,9 +649,9 @@ services:
     container_name: security-triage-data-analytics
     environment:
       # Database
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@localhost:5432/security_triage}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@postgres:5432/security_triage}
       # Redis
-      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@localhost:6379/0}
+      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@redis:6379/0}
       # Application
       HOST: 0.0.0.0
       PORT: 8000
@@ -651,7 +665,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: curl -f http://localhost:8000/health || exit 1
+      test: python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
       interval: 10s
       timeout: 5s
       retries: 5
@@ -668,9 +682,9 @@ services:
     container_name: security-triage-reporting-service
     environment:
       # Database
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@localhost:5432/security_triage}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@postgres:5432/security_triage}
       # Redis
-      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@localhost:6379/0}
+      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@redis:6379/0}
       # Application
       HOST: 0.0.0.0
       PORT: 8000
@@ -686,7 +700,7 @@ services:
       data-analytics:
         condition: service_healthy
     healthcheck:
-      test: curl -f http://localhost:8000/health || exit 1
+      test: python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
       interval: 10s
       timeout: 5s
       retries: 5
@@ -703,9 +717,9 @@ services:
     container_name: security-triage-configuration-service
     environment:
       # Database
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@localhost:5432/security_triage}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@postgres:5432/security_triage}
       # Redis
-      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@localhost:6379/0}
+      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@redis:6379/0}
       # Application
       HOST: 0.0.0.0
       PORT: 8000
@@ -719,7 +733,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: curl -f http://localhost:8000/health || exit 1
+      test: python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
       interval: 10s
       timeout: 5s
       retries: 5
@@ -736,9 +750,9 @@ services:
     container_name: security-triage-monitoring-metrics
     environment:
       # Database
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@localhost:5432/security_triage}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@postgres:5432/security_triage}
       # Redis
-      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@localhost:6379/0}
+      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@redis:6379/0}
       # Prometheus
       PROMETHEUS_URL: ${PROMETHEUS_URL:-http://prometheus:9090}
       # Application
@@ -756,7 +770,7 @@ services:
       prometheus:
         condition: service_healthy
     healthcheck:
-      test: curl -f http://localhost:8000/health || exit 1
+      test: python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
       interval: 10s
       timeout: 5s
       retries: 5
@@ -764,6 +778,8 @@ services:
     networks:
       - security-triage-network
     restart: unless-stopped
+    profiles:
+      - monitoring
 
   # Web Dashboard (React Frontend)
   web-dashboard:
@@ -792,7 +808,7 @@ services:
       configuration-service:
         condition: service_healthy
     healthcheck:
-      test: curl -f http://localhost:8000/health || exit 1
+      test: python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
       interval: 10s
       timeout: 5s
       retries: 5

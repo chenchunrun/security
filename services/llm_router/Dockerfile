@@ -6,13 +6,14 @@
 #
 #     http://www.apache.org/licenses/LICENSE-2.0
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# LLM Router Service - Dockerfile
+# Intelligently routes LLM requests to appropriate models (DeepSeek-V3 or Qwen3)
 
 FROM python:3.11-slim
 
@@ -29,14 +30,15 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources || \
     sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list.d/debian.sources || \
     sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list.d/debian.sources
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+    apt-get install -y --fix-missing --no-install-recommends \
+        gcc \
+        g++ \
+        curl \
+        && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
-# Build context is ./services/workflow_engine, so use relative paths
-COPY ./services/workflow_engine/requirements.txt /app/
+COPY ./services/llm_router/requirements.txt /app/
 
 # Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
@@ -46,19 +48,20 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY ./services/shared /app/services/shared
 
 # Copy service code (current directory)
-COPY ./services/workflow_engine /app/services/workflow_engine
+COPY ./services/llm_router /app/services/llm_router
 
 # Create non-root user
-RUN useradd -m -u 1000 triage && \
-    chown -R triage:triage /app
-USER triage
+RUN useradd -m -u 1001 appuser && \
+    chown -R appuser:appuser /app
+
+USER appuser
 
 # Expose port
 EXPOSE 8000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
 
-# Run the application
-CMD ["python", "services/workflow_engine/main.py"]
+# Run application
+CMD ["python", "services/llm_router/main.py"]
