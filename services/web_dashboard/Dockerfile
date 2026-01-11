@@ -17,17 +17,17 @@
 # =============================================================================
 FROM node:20-alpine AS frontend-builder
 
-# Build context is ./services/web_dashboard
+# Build context is project root (./)
 WORKDIR /frontend
 
-# Copy frontend package files from current directory
-COPY package.json package-lock.json* ./
+# Copy frontend package files from project root
+COPY ./services/web_dashboard/package.json ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies (npm install instead of ci since no package-lock.json exists)
+RUN npm install
 
-# Copy frontend source (current directory)
-COPY . ./
+# Copy frontend source from project root
+COPY ./services/web_dashboard ./
 
 # Build frontend
 RUN npm run build
@@ -39,22 +39,29 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# Use China mirrors for faster downloads
+RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources || \
+    sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list.d/debian.sources || \
+    sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list.d/debian.sources
 
-# Install Python dependencies (from current directory)
-COPY requirements.txt .
+# Install system dependencies with retry logic
+RUN for i in 1 2 3; do \
+    apt-get update && apt-get install -y --fix-missing \
+        gcc \
+        g++ \
+        curl \
+        && rm -rf /var/lib/apt/lists/* && break || sleep 10; \
+    done
+
+# Install Python dependencies (from project root)
+COPY ./services/web_dashboard/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy shared module (parent directory relative to build context)
-COPY ../shared /app/shared
+COPY ./services/shared /app/shared
 
 # Copy backend code (current directory)
-COPY . /app/services/web_dashboard
+COPY ./services/web_dashboard /app/services/web_dashboard
 
 # Copy built frontend from stage 1
 COPY --from=frontend-builder /frontend/dist /app/static

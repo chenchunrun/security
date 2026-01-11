@@ -6,8 +6,8 @@ import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { api } from '@/lib/api'
-import type { Alert, AlertFilters } from '@/types'
-import { Search, Filter, Eye, ArrowUpDown } from 'lucide-react'
+import type { AlertFilters } from '@/types'
+import { Search, Filter, Eye, ArrowUpDown, AlertTriangle } from 'lucide-react'
 
 const severityColors = {
   critical: 'badge-critical',
@@ -38,7 +38,7 @@ export const Alerts: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('')
 
   // Fetch alerts
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['alerts', filters],
     queryFn: () => api.alerts.getAlerts(filters),
   })

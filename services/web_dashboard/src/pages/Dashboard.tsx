@@ -5,7 +5,6 @@
 import React from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { AlertMetrics, TopAlerts } from '@/types'
 import {
   TrendingUp,
   TrendingDown,
