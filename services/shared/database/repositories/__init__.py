@@ -14,6 +14,12 @@
 
 """Repository layer for database operations."""
 
+from .alert_repository import AlertRepository
 from .base import BaseRepository
+from .triage_repository import TriageRepository
 
-__all__ = ["BaseRepository"]
+__all__ = [
+    "BaseRepository",
+    "AlertRepository",
+    "TriageRepository",
+]

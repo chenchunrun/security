@@ -20,7 +20,7 @@ the main alert model, enums for types and severities, and alert status tracking.
 """
 
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -231,7 +231,14 @@ class SecurityAlert(BaseModel):
     @classmethod
     def validate_timestamp_not_future(cls, v: datetime) -> datetime:
         """Ensure timestamp is not in the future (allow small clock skew)."""
-        now = datetime.utcnow()
+        # Handle both naive and aware datetimes
+        if v.tzinfo is not None and v.tzinfo.utcoffset(v) is not None:
+            # Input is offset-aware, use aware now
+            now = datetime.now(timezone.utc)
+        else:
+            # Input is offset-naive, use naive now
+            now = datetime.utcnow()
+
         if v > now + timedelta(minutes=5):
             raise ValueError("Timestamp cannot be in the future")
         return v

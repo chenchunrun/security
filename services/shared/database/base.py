@@ -23,6 +23,7 @@ from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, Dict, Optional
 
 from shared.utils.logger import get_logger
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -97,7 +98,7 @@ class DatabaseManager:
         try:
             # Test connection
             async with self.engine.connect() as conn:
-                await conn.execute("SELECT 1")
+                await conn.execute(text("SELECT 1"))
 
             self._initialized = True
             logger.info(
@@ -156,7 +157,7 @@ class DatabaseManager:
         try:
             # Test connection
             async with self.engine.connect() as conn:
-                await conn.execute("SELECT 1")
+                await conn.execute(text("SELECT 1"))
 
             # Get pool status
             pool = self.engine.pool

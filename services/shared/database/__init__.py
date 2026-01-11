@@ -19,8 +19,37 @@ This package provides database connectivity, session management,
 and repository base classes used across all services.
 """
 
-from .base import DatabaseManager, get_database_manager
+from .base import DatabaseManager, close_database, get_database_manager, init_database
+from .models import (
+    Alert,
+    AlertContext,
+    Asset,
+    AuditLog,
+    Incident,
+    IncidentAlert,
+    RemediationAction,
+    ThreatIntel,
+    TriageResult,
+    User,
+)
 
 __version__ = "1.0.0"
 
-__all__ = ["DatabaseManager", "get_database_manager"]
+__all__ = [
+    # Database management
+    "DatabaseManager",
+    "get_database_manager",
+    "init_database",
+    "close_database",
+    # Models
+    "User",
+    "Asset",
+    "Alert",
+    "AlertContext",
+    "TriageResult",
+    "ThreatIntel",
+    "Incident",
+    "IncidentAlert",
+    "RemediationAction",
+    "AuditLog",
+]

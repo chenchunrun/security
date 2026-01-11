@@ -15,15 +15,18 @@
 """
 Structured logging utilities.
 
-Provides JSON-structured logging with loguru.
+Provides logging with standard Python logging module.
 """
 
+import logging
+import os
 import sys
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from loguru import logger as _logger
-
+# Global flag to ensure handlers are only added once
+_handlers_configured = False
+_logger = None
 
 def get_logger(name: str) -> Any:
     """
@@ -35,28 +38,48 @@ def get_logger(name: str) -> Any:
     Returns:
         Logger instance
     """
-    # Remove default handler
-    _logger.remove()
+    global _handlers_configured, _logger
 
-    # Add console handler with color and format
-    _logger.add(
-        sys.stderr,
-        format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
-        level="INFO",
-        colorize=True,
-    )
+    # Only configure handlers once
+    if not _handlers_configured:
+        _logger = logging.getLogger("security_triage")
+        _logger.setLevel(logging.DEBUG)
 
-    # Add file handler for JSON logs
-    _logger.add(
-        "logs/triage.log",
-        rotation="100 MB",
-        retention="30 days",
-        format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {name}:{function}:{line} - {message}",
-        level="DEBUG",
-        serialize=True,  # JSON format
-    )
+        # Console handler
+        console_handler = logging.StreamHandler(sys.stderr)
+        console_handler.setLevel(logging.INFO)
+        console_format = logging.Formatter(
+            '%(asctime)s | %(levelname)-8s | %(name)s:%(funcName)s:%(lineno)d - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        console_handler.setFormatter(console_format)
+        _logger.addHandler(console_handler)
 
-    return _logger
+        # File handler for JSON logs - create logs directory if it doesn't exist
+        log_dir = "logs"
+        try:
+            os.makedirs(log_dir, exist_ok=True)
+            from logging.handlers import RotatingFileHandler
+            file_handler = RotatingFileHandler(
+                os.path.join(log_dir, "triage.log"),
+                maxBytes=100*1024*1024,  # 100 MB
+                backupCount=30
+            )
+            file_handler.setLevel(logging.DEBUG)
+            file_format = logging.Formatter(
+                '%(asctime)s | %(levelname)s | %(name)s:%(funcName)s:%(lineno)d - %(message)s',
+                datefmt='%Y-%m-%d %H:%M:%S'
+            )
+            file_handler.setFormatter(file_format)
+            _logger.addHandler(file_handler)
+        except Exception as e:
+            # If we can't create the file handler, just use console
+            _logger.warning(f"Could not create file handler: {e}")
+
+        _handlers_configured = True
+
+    # Return a child logger with the specified name
+    return _logger.getChild(name)
 
 
 def log_structured(
@@ -76,6 +99,8 @@ def log_structured(
 
     log_func = getattr(logger, level, logger.info)
     if extra:
-        logger.bind(**extra).log(level, message)
+        # Add extra fields to the message as string
+        extra_str = " | " + ", ".join(f"{k}={v}" for k, v in extra.items())
+        log_func(message + extra_str)
     else:
         log_func(message)
