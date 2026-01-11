@@ -23,6 +23,7 @@ This service consumes normalized alerts and enriches them with:
 
 import asyncio
 import ipaddress
+import os
 import re
 import uuid
 from contextlib import asynccontextmanager
@@ -31,7 +32,8 @@ from typing import Any, Dict, Optional
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from shared.database import DatabaseManager, get_database_manager
+from sqlalchemy import text
+from shared.database import DatabaseManager, close_database, get_database_manager, init_database
 from shared.messaging import MessageConsumer, MessagePublisher
 from shared.models import SecurityAlert
 from shared.utils import Config, get_logger
@@ -145,10 +147,7 @@ async def get_network_context(ip: str) -> Dict[str, Any]:
         expiry_time = datetime.utcnow().timestamp() + CACHE_TTL_SECONDS
         context_cache[cache_key] = (context, expiry_time)
 
-        logger.debug(
-            f"Network context collected for {ip}",
-            extra={"ip": ip, "is_internal": context["is_internal"]},
-        )
+        logger.debug(f"Network context collected for {ip} (is_internal: {context['is_internal']})")
 
         return context
 
@@ -421,9 +420,14 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Context Collector Service")
 
     try:
-        # Initialize database
+        # Initialize database FIRST before getting manager
+        await init_database(
+            database_url=config.database_url,
+            pool_size=int(os.getenv("DB_POOL_SIZE", "10")),
+            max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "20")),
+            echo=config.debug,
+        )
         db_manager = get_database_manager()
-        await db_manager.initialize()
         logger.info("✓ Database connected")
 
         # Initialize message publisher
@@ -435,6 +439,10 @@ async def lifespan(app: FastAPI):
         consumer = MessageConsumer(config.rabbitmq_url, "alert.normalized")
         await consumer.connect()
         logger.info("✓ Message consumer connected")
+
+        # Start message consumer task
+        asyncio.create_task(consume_alerts())
+        logger.info("✓ Message consumer task started")
 
         # Start cache cleanup task
         asyncio.create_task(cleanup_cache())
@@ -459,9 +467,9 @@ async def lifespan(app: FastAPI):
             await publisher.close()
             logger.info("✓ Message publisher closed")
 
-        if db_manager:
-            await db_manager.close()
-            logger.info("✓ Database connection closed")
+        # Close database using the close_database function
+        await close_database()
+        logger.info("✓ Database connection closed")
 
         logger.info("✓ Context Collector Service stopped")
 
@@ -488,13 +496,87 @@ app.add_middleware(
 # =============================================================================
 
 
+async def persist_context_to_db(alert_id: str, enrichment: Dict[str, Any]):
+    """
+    Persist context enrichment to database.
+
+    Args:
+        alert_id: Alert identifier
+        enrichment: Enrichment data dictionary
+    """
+    import json
+    try:
+        async with db_manager.get_session() as session:
+            # Save network context for source IP
+            if "source_network" in enrichment:
+                await session.execute(
+                    text("""
+                        INSERT INTO alert_context (alert_id, context_type, context_data, source, confidence_score)
+                        VALUES (:alert_id, :context_type, :context_data, :source, :confidence_score)
+                    """),
+                    {
+                        "alert_id": alert_id,
+                        "context_type": "network",
+                        "context_data": json.dumps(enrichment["source_network"]),
+                        "source": "context-collector",
+                        "confidence_score": 0.8,
+                    }
+                )
+
+            # Save asset context
+            if "asset" in enrichment:
+                await session.execute(
+                    text("""
+                        INSERT INTO alert_context (alert_id, context_type, context_data, source, confidence_score)
+                        VALUES (:alert_id, :context_type, :context_data, :source, :confidence_score)
+                    """),
+                    {
+                        "alert_id": alert_id,
+                        "context_type": "asset",
+                        "context_data": json.dumps(enrichment["asset"]),
+                        "source": "context-collector",
+                        "confidence_score": 0.9,
+                    }
+                )
+
+            # Save user context
+            if "user" in enrichment:
+                await session.execute(
+                    text("""
+                        INSERT INTO alert_context (alert_id, context_type, context_data, source, confidence_score)
+                        VALUES (:alert_id, :context_type, :context_data, :source, :confidence_score)
+                    """),
+                    {
+                        "alert_id": alert_id,
+                        "context_type": "user",
+                        "context_data": json.dumps(enrichment["user"]),
+                        "source": "context-collector",
+                        "confidence_score": 0.9,
+                    }
+                )
+
+            await session.commit()
+            logger.debug(f"Context persisted for alert {alert_id}")
+
+    except Exception as e:
+        logger.error(f"Failed to persist context: {e}", exc_info=True)
+
+
 async def consume_alerts():
     """Consume normalized alerts and enrich with context."""
 
     async def process_message(message: dict):
         try:
-            payload = message.get("payload", {})
-            message_id = message.get("message_id", "unknown")
+            # Unwrap message envelope if present (publisher wraps with _meta and data)
+            if "data" in message and isinstance(message["data"], dict):
+                actual_message = message["data"]
+                meta = message.get("_meta", {})
+                message_id = meta.get("message_id", message.get("message_id", "unknown"))
+            else:
+                actual_message = message
+                message_id = message.get("message_id", "unknown")
+
+            payload = actual_message.get("payload", actual_message)
 
             logger.info(f"Processing message {message_id}")
 
@@ -503,6 +585,9 @@ async def consume_alerts():
 
             # Enrich with context
             enrichment = await enrich_alert(alert)
+
+            # Persist context to database
+            await persist_context_to_db(alert.alert_id, enrichment)
 
             # Create enriched message
             enriched_message = {
@@ -522,17 +607,13 @@ async def consume_alerts():
             await publisher.publish("alert.enriched", enriched_message)
 
             logger.info(
-                "Alert enriched successfully",
-                extra={
-                    "message_id": message_id,
-                    "alert_id": alert.alert_id,
-                    "enrichment_sources": len(enrichment.get("enrichment_sources", [])),
-                },
+                f"Alert enriched successfully (message_id: {message_id}, alert_id: {alert.alert_id}, sources: {len(enrichment.get('enrichment_sources', []))})"
             )
 
         except Exception as e:
             logger.error(f"Context enrichment failed: {e}", exc_info=True)
-            # TODO: Send to dead letter queue
+            # Re-raise to let consumer handle retries and DLQ
+            raise
 
     # Start consuming
     await consumer.consume(process_message)

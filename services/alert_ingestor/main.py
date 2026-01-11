@@ -19,6 +19,7 @@ Receives security alerts from multiple sources and publishes to message queue.
 """
 
 import asyncio
+import os
 import uuid
 from collections import defaultdict
 from contextlib import asynccontextmanager
@@ -28,7 +29,8 @@ from typing import Dict, List
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from shared.database import DatabaseManager, get_database_manager
+from sqlalchemy import text
+from shared.database import DatabaseManager, get_database_manager, init_database, close_database
 from shared.errors import ValidationError
 from shared.messaging import MessagePublisher
 from shared.models import (
@@ -98,9 +100,14 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Alert Ingestor Service")
 
     try:
-        # Initialize database
+        # Initialize database FIRST before getting manager
+        await init_database(
+            database_url=config.database_url,
+            pool_size=int(os.getenv("DB_POOL_SIZE", "10")),
+            max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "20")),
+            echo=config.debug,
+        )
         db_manager = get_database_manager()
-        await db_manager.initialize()
         logger.info("✓ Database connected")
 
         # Initialize message publisher
@@ -124,9 +131,9 @@ async def lifespan(app: FastAPI):
             await message_publisher.close()
             logger.info("✓ Message publisher closed")
 
-        if db_manager:
-            await db_manager.close()
-            logger.info("✓ Database connection closed")
+        # Close database using the close_database function
+        await close_database()
+        logger.info("✓ Database connection closed")
 
         logger.info("✓ Alert Ingestor Service stopped")
 
@@ -216,30 +223,30 @@ async def ingest_alert(request: Request, alert: SecurityAlert):
                 detail="alert_id is required",
             )
 
-        # TODO: Persist to database (uncomment when database models are ready)
-        # async with db_manager.get_session() as session:
-        #     await session.execute(
-        #         text("""
-        #             INSERT INTO alerts (alert_id, timestamp, alert_type, severity, description,
-        #                               source_ip, target_ip, file_hash, url, asset_id, user_id)
-        #             VALUES (:alert_id, :timestamp, :alert_type, :severity, :description,
-        #                     :source_ip, :target_ip, :file_hash, :url, :asset_id, :user_id)
-        #         """),
-        #         {
-        #             "alert_id": alert.alert_id,
-        #             "timestamp": alert.timestamp,
-        #             "alert_type": alert.alert_type.value,
-        #             "severity": alert.severity.value,
-        #             "description": alert.description,
-        #             "source_ip": alert.source_ip,
-        #             "target_ip": alert.target_ip,
-        #             "file_hash": alert.file_hash,
-        #             "url": alert.url,
-        #             "asset_id": alert.asset_id,
-        #             "user_id": alert.user_id,
-        #         }
-        #     )
-        #     await session.commit()
+        # Persist to database
+        async with db_manager.get_session() as session:
+            await session.execute(
+                text("""
+                    INSERT INTO alerts (alert_id, received_at, alert_type, severity, description,
+                                      source_ip, destination_ip, file_hash, url, asset_id, user_name)
+                    VALUES (:alert_id, :received_at, :alert_type, :severity, :description,
+                            :source_ip, :destination_ip, :file_hash, :url, :asset_id, :user_name)
+                """),
+                {
+                    "alert_id": alert.alert_id,
+                    "received_at": alert.timestamp,
+                    "alert_type": alert.alert_type.value,
+                    "severity": alert.severity.value,
+                    "description": alert.description,
+                    "source_ip": alert.source_ip,
+                    "destination_ip": alert.target_ip,
+                    "file_hash": alert.file_hash,
+                    "url": alert.url,
+                    "asset_id": alert.asset_id,
+                    "user_name": alert.user_id,
+                }
+            )
+            await session.commit()
 
         # Create message
         message = {

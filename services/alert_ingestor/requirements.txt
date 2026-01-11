@@ -23,6 +23,9 @@ loguru>=0.7.0
 # Utilities
 python-dateutil>=2.8.2
 
+# Rate Limiting
+slowapi>=0.1.9
+
 # Shared services (import from parent)
 # -shared.models
 # -shared.database

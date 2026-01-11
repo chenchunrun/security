@@ -26,6 +26,7 @@ Aggregates results and provides a consolidated threat score.
 
 import asyncio
 import hashlib
+import os
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -34,7 +35,8 @@ from typing import Any, Dict, List, Optional
 import aiohttp
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from shared.database import DatabaseManager, get_database_manager
+from sqlalchemy import text
+from shared.database import DatabaseManager, close_database, get_database_manager, init_database
 from shared.messaging import MessageConsumer, MessagePublisher
 from shared.models import SecurityAlert
 from shared.utils import Config, get_logger
@@ -331,7 +333,7 @@ def init_threat_sources():
     global threat_sources
 
     # VirusTotal (requires API key)
-    vt_api_key = config.get("virustotal_api_key", "your_vt_key")
+    vt_api_key = os.getenv("VIRUSTOTAL_API_KEY", "your_vt_key")
     threat_sources.append(VirusTotalSource(vt_api_key))
 
     # Abuse.ch (free public API)
@@ -509,9 +511,14 @@ async def lifespan(app: FastAPI):
         # Initialize threat intel sources
         init_threat_sources()
 
-        # Initialize database
+        # Initialize database FIRST before getting manager
+        await init_database(
+            database_url=config.database_url,
+            pool_size=int(os.getenv("DB_POOL_SIZE", "10")),
+            max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "20")),
+            echo=config.debug,
+        )
         db_manager = get_database_manager()
-        await db_manager.initialize()
         logger.info("✓ Database connected")
 
         # Initialize message publisher
@@ -523,6 +530,10 @@ async def lifespan(app: FastAPI):
         consumer = MessageConsumer(config.rabbitmq_url, "alert.enriched")
         await consumer.connect()
         logger.info("✓ Message consumer connected")
+
+        # Start message consumer task
+        asyncio.create_task(consume_alerts())
+        logger.info("✓ Message consumer task started")
 
         logger.info("✓ Threat Intel Aggregator Service started successfully")
 
@@ -543,9 +554,9 @@ async def lifespan(app: FastAPI):
             await publisher.close()
             logger.info("✓ Message publisher closed")
 
-        if db_manager:
-            await db_manager.close()
-            logger.info("✓ Database connection closed")
+        # Close database using the close_database function
+        await close_database()
+        logger.info("✓ Database connection closed")
 
         logger.info("✓ Threat Intel Aggregator Service stopped")
 
@@ -572,13 +583,136 @@ app.add_middleware(
 # =============================================================================
 
 
+async def persist_threat_intel_to_db(alert: SecurityAlert, enrichment: Dict[str, Any]):
+    """
+    Persist threat intelligence to database.
+
+    Args:
+        alert: SecurityAlert object
+        enrichment: Threat intelligence enrichment
+    """
+    import json
+    try:
+        threat_data = enrichment.get("threat_intel", {})
+
+        async with db_manager.get_session() as session:
+            # Save source IP threat intel
+            if alert.source_ip and "source_ip" in threat_data:
+                ip_data = threat_data["source_ip"]
+                if isinstance(ip_data, dict) and ip_data.get("reputation"):
+                    await session.execute(
+                        text("""
+                            INSERT INTO threat_intel (ioc, ioc_type, threat_level, confidence_score,
+                                                      source, description, first_seen, last_seen,
+                                                      detection_rate, positives, total, raw_data)
+                            VALUES (:ioc, :ioc_type, :threat_level, :confidence_score,
+                                    :source, :description, :first_seen, :last_seen,
+                                    :detection_rate, :positives, :total, :raw_data)
+                            ON CONFLICT (ioc, ioc_type) DO UPDATE SET
+                                threat_level = EXCLUDED.threat_level,
+                                confidence_score = EXCLUDED.confidence_score,
+                                last_seen = EXCLUDED.last_seen,
+                                detection_rate = EXCLUDED.detection_rate,
+                                updated_at = NOW()
+                        """),
+                        {
+                            "ioc": alert.source_ip,
+                            "ioc_type": "ip",
+                            "threat_level": ip_data.get("threat_level", "low"),
+                            "confidence_score": ip_data.get("confidence", 0.5),
+                            "source": ip_data.get("source", "threat-intel-aggregator"),
+                            "description": ip_data.get("reputation", "Unknown"),
+                            "first_seen": ip_data.get("first_seen"),
+                            "last_seen": ip_data.get("last_seen", datetime.utcnow()),
+                            "detection_rate": ip_data.get("detection_rate"),
+                            "positives": ip_data.get("positives"),
+                            "total": ip_data.get("total"),
+                            "raw_data": json.dumps(ip_data),
+                        }
+                    )
+
+            # Save file hash threat intel
+            if alert.file_hash and "file_hash" in threat_data:
+                hash_data = threat_data["file_hash"]
+                if isinstance(hash_data, dict):
+                    await session.execute(
+                        text("""
+                            INSERT INTO threat_intel (ioc, ioc_type, threat_level, confidence_score,
+                                                      source, description, detection_rate, positives, total, raw_data)
+                            VALUES (:ioc, :ioc_type, :threat_level, :confidence_score,
+                                    :source, :description, :detection_rate, :positives, :total, :raw_data)
+                            ON CONFLICT (ioc, ioc_type) DO UPDATE SET
+                                threat_level = EXCLUDED.threat_level,
+                                confidence_score = EXCLUDED.confidence_score,
+                                detection_rate = EXCLUDED.detection_rate,
+                                updated_at = NOW()
+                        """),
+                        {
+                            "ioc": alert.file_hash,
+                            "ioc_type": "hash",
+                            "threat_level": hash_data.get("threat_level", "low"),
+                            "confidence_score": hash_data.get("confidence", 0.5),
+                            "source": hash_data.get("source", "threat-intel-aggregator"),
+                            "description": hash_data.get("classification", "Unknown"),
+                            "detection_rate": hash_data.get("detection_rate"),
+                            "positives": hash_data.get("positives"),
+                            "total": hash_data.get("total"),
+                            "raw_data": json.dumps(hash_data),
+                        }
+                    )
+
+            # Save URL threat intel
+            if alert.url and "url" in threat_data:
+                url_data = threat_data["url"]
+                if isinstance(url_data, dict):
+                    await session.execute(
+                        text("""
+                            INSERT INTO threat_intel (ioc, ioc_type, threat_level, confidence_score,
+                                                      source, description, detection_rate, positives, total, raw_data)
+                            VALUES (:ioc, :ioc_type, :threat_level, :confidence_score,
+                                    :source, :description, :detection_rate, :positives, :total, :raw_data)
+                            ON CONFLICT (ioc, ioc_type) DO UPDATE SET
+                                threat_level = EXCLUDED.threat_level,
+                                confidence_score = EXCLUDED.confidence_score,
+                                detection_rate = EXCLUDED.detection_rate,
+                                updated_at = NOW()
+                        """),
+                        {
+                            "ioc": alert.url,
+                            "ioc_type": "url",
+                            "threat_level": url_data.get("threat_level", "low"),
+                            "confidence_score": url_data.get("confidence", 0.5),
+                            "source": url_data.get("source", "threat-intel-aggregator"),
+                            "description": url_data.get("classification", "Unknown"),
+                            "detection_rate": url_data.get("detection_rate"),
+                            "positives": url_data.get("positives"),
+                            "total": url_data.get("total"),
+                            "raw_data": json.dumps(url_data),
+                        }
+                    )
+
+            await session.commit()
+            logger.debug(f"Threat intel persisted for alert {alert.alert_id}")
+
+    except Exception as e:
+        logger.error(f"Failed to persist threat intel: {e}", exc_info=True)
+
+
 async def consume_alerts():
     """Consume enriched alerts and add threat intelligence."""
 
     async def process_message(message: dict):
         try:
-            payload = message.get("payload", {})
-            message_id = message.get("message_id", "unknown")
+            # Unwrap message envelope if present (publisher wraps with _meta and data)
+            if "data" in message and isinstance(message["data"], dict):
+                actual_message = message["data"]
+                meta = message.get("_meta", {})
+                message_id = meta.get("message_id", message.get("message_id", "unknown"))
+            else:
+                actual_message = message
+                message_id = message.get("message_id", "unknown")
+
+            payload = actual_message.get("payload", actual_message)
 
             logger.info(f"Processing message {message_id}")
 
@@ -594,6 +728,9 @@ async def consume_alerts():
 
             # Enrich with threat intel
             threat_enrichment = await enrich_with_threat_intel(alert)
+
+            # Persist threat intel to database
+            await persist_threat_intel_to_db(alert, threat_enrichment)
 
             # Merge with existing enrichment
             existing_enrichment.update(threat_enrichment)
@@ -615,17 +752,12 @@ async def consume_alerts():
             # Publish enriched alert (with threat intel)
             await publisher.publish("alert.enriched", enriched_message)
 
-            logger.info(
-                "Alert enriched with threat intel",
-                extra={
-                    "message_id": message_id,
-                    "alert_id": alert.alert_id,
-                },
-            )
+            logger.info(f"Alert enriched with threat intel (message_id: {message_id}, alert_id: {alert.alert_id})")
 
         except Exception as e:
             logger.error(f"Threat intel enrichment failed: {e}", exc_info=True)
-            # TODO: Send to dead letter queue
+            # Re-raise to let consumer handle retries and DLQ
+            raise
 
     # Start consuming
     await consumer.consume(process_message)

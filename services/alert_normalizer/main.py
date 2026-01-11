@@ -21,17 +21,17 @@ to a standard format, extracts IOCs, and publishes normalized alerts.
 
 import asyncio
 import hashlib
-import re
+import os
 import uuid
 from collections import defaultdict
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Set
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from shared.database import DatabaseManager, get_database_manager
-from shared.messaging import MessageConsumer, MessagePublisher
+from shared.database import DatabaseManager, close_database, get_database_manager, init_database
+from shared.messaging import BatchConsumer, MessageConsumer, MessagePublisher
 from shared.models import (
     AlertType,
     ResponseMeta,
@@ -40,6 +40,13 @@ from shared.models import (
     SuccessResponse,
 )
 from shared.utils import Config, get_logger
+
+# Import processors
+from services.alert_normalizer.processors import (
+    CEFProcessor,
+    QRadarProcessor,
+    SplunkProcessor,
+)
 
 # Initialize logger
 logger = get_logger(__name__)
@@ -52,9 +59,21 @@ db_manager: DatabaseManager = None
 publisher: MessagePublisher = None
 consumer: MessageConsumer = None
 
+# Processors for different SIEM formats
+PROCESSORS = {
+    "splunk": SplunkProcessor(),
+    "qradar": QRadarProcessor(),
+    "cef": CEFProcessor(),
+    "default": SplunkProcessor(),  # Fallback
+}
+
 # Deduplication cache (in-memory, use Redis in production)
 processed_alerts_cache: Set[str] = set()
 CACHE_MAX_SIZE = 10000
+
+# Aggregation settings
+AGGREGATION_WINDOW = timedelta(seconds=30)
+AGGREGATION_MAX_SIZE = 100
 
 
 # =============================================================================
@@ -248,126 +267,33 @@ def is_duplicate_alert(alert: dict) -> bool:
 
 def normalize_alert(raw_alert: dict, source_type: str = "default") -> SecurityAlert:
     """
-    Normalize alert from source system to standard format.
+    Normalize alert from source system to standard format using dedicated processors.
 
     Args:
         raw_alert: Raw alert data
-        source_type: Source system type
+        source_type: Source system type (splunk, qradar, cef, default)
 
     Returns:
         Normalized SecurityAlert
 
     Raises:
-        ValueError: If validation fails
+        ValueError: If validation fails or processor not found
     """
     try:
-        # Extract and map fields
-        alert_id = map_field(raw_alert, source_type, "alert_id") or f"AUTO-{uuid.uuid4()}"
-        timestamp_str = map_field(raw_alert, source_type, "timestamp")
-        alert_type_str = map_field(raw_alert, source_type, "alert_type")
-        severity_str = map_field(raw_alert, source_type, "severity")
-        description = map_field(raw_alert, source_type, "description")
-        source_ip = map_field(raw_alert, source_type, "source_ip")
-        target_ip = map_field(raw_alert, source_type, "target_ip")
-        file_hash = map_field(raw_alert, source_type, "file_hash")
-        url = map_field(raw_alert, source_type, "url")
-        asset_id = map_field(raw_alert, source_type, "asset_id")
-        user_id = map_field(raw_alert, source_type, "user_id")
+        # Get appropriate processor
+        processor = PROCESSORS.get(source_type.lower(), PROCESSORS["default"])
 
-        # Parse timestamp
-        if timestamp_str:
-            if isinstance(timestamp_str, str):
-                # Try common timestamp formats
-                for fmt in [
-                    "%Y-%m-%dT%H:%M:%SZ",
-                    "%Y-%m-%dT%H:%M:%S.%fZ",
-                    "%Y-%m-%d %H:%M:%S",
-                    "%Y-%m-%dT%H:%M:%S%z",
-                ]:
-                    try:
-                        timestamp = datetime.strptime(timestamp_str, fmt)
-                        break
-                    except ValueError:
-                        continue
-                else:
-                    # If all formats fail, use current time
-                    timestamp = datetime.utcnow()
-            elif isinstance(timestamp_str, datetime):
-                timestamp = timestamp_str
-            else:
-                timestamp = datetime.utcnow()
-        else:
-            timestamp = datetime.utcnow()
+        # Use processor to normalize alert
+        normalized_alert = processor.process(raw_alert)
 
-        # Parse alert type
-        if alert_type_str:
-            alert_type = AlertType.from_string(str(alert_type_str))
-        else:
-            alert_type = AlertType.OTHER
+        # Add source type to normalized data
+        if not normalized_alert.normalized_data:
+            normalized_alert.normalized_data = {}
 
-        # Parse severity
-        if severity_str:
-            severity_str = str(severity_str).lower()
-            severity_map = {
-                "critical": Severity.CRITICAL,
-                "high": Severity.HIGH,
-                "medium": Severity.MEDIUM,
-                "low": Severity.LOW,
-                "info": Severity.INFO,
-            }
-            severity = severity_map.get(severity_str, Severity.MEDIUM)
-        else:
-            severity = Severity.MEDIUM
+        normalized_alert.normalized_data["source_type"] = source_type
+        normalized_alert.normalized_data["normalized_at"] = datetime.utcnow().isoformat()
 
-        # Validate required fields
-        if not description:
-            description = f"Alert from {source_type}"
-
-        # Validate IP addresses
-        if source_ip:
-            # Basic IP validation
-            ip_pattern = r"^(?:\d{1,3}\.){3}\d{1,3}$"
-            if not re.match(ip_pattern, str(source_ip)):
-                source_ip = None
-
-        if target_ip:
-            if not re.match(r"^(?:\d{1,3}\.){3}\d{1,3}$", str(target_ip)):
-                target_ip = None
-
-        # Validate file hash format
-        if file_hash:
-            hash_len = len(str(file_hash))
-            if hash_len not in [32, 40, 64]:
-                file_hash = None
-
-        # Create normalized alert
-        normalized_alert = SecurityAlert(
-            alert_id=str(alert_id),
-            timestamp=timestamp,
-            alert_type=alert_type,
-            severity=severity,
-            description=str(description),
-            source_ip=source_ip,
-            target_ip=target_ip,
-            file_hash=file_hash,
-            url=url,
-            asset_id=asset_id,
-            user_id=user_id,
-            raw_data=raw_alert,  # Preserve original data
-            normalized_data={
-                "source_type": source_type,
-                "normalized_at": datetime.utcnow().isoformat(),
-            },
-        )
-
-        logger.debug(
-            "Alert normalized successfully",
-            extra={
-                "alert_id": normalized_alert.alert_id,
-                "source_type": source_type,
-                "alert_type": normalized_alert.alert_type.value,
-            },
-        )
+        logger.debug(f"Alert normalized successfully (alert_id: {normalized_alert.alert_id}, source_type: {source_type}, processor: {processor.__class__.__name__}, alert_type: {normalized_alert.alert_type.value})")
 
         return normalized_alert
 
@@ -389,9 +315,14 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Alert Normalizer Service")
 
     try:
-        # Initialize database
+        # Initialize database FIRST before getting manager
+        await init_database(
+            database_url=config.database_url,
+            pool_size=int(os.getenv("DB_POOL_SIZE", "10")),
+            max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "20")),
+            echo=config.debug,
+        )
         db_manager = get_database_manager()
-        await db_manager.initialize()
         logger.info("✓ Database connected")
 
         # Initialize message publisher
@@ -403,6 +334,10 @@ async def lifespan(app: FastAPI):
         consumer = MessageConsumer(config.rabbitmq_url, "alert.raw")
         await consumer.connect()
         logger.info("✓ Message consumer connected")
+
+        # Start message consumer task
+        asyncio.create_task(consume_alerts())
+        logger.info("✓ Message consumer task started")
 
         logger.info("✓ Alert Normalizer Service started successfully")
 
@@ -423,9 +358,9 @@ async def lifespan(app: FastAPI):
             await publisher.close()
             logger.info("✓ Message publisher closed")
 
-        if db_manager:
-            await db_manager.close()
-            logger.info("✓ Database connection closed")
+        # Close database using the close_database function
+        await close_database()
+        logger.info("✓ Database connection closed")
 
         logger.info("✓ Alert Normalizer Service stopped")
 
@@ -448,6 +383,132 @@ app.add_middleware(
 
 
 # =============================================================================
+# Alert Aggregation
+# =============================================================================
+
+
+class AlertAggregator:
+    """
+    Aggregate similar alerts within a time window.
+
+    Reduces noise by combining similar alerts that occur within
+    a short time period.
+    """
+
+    def __init__(self, window_seconds: int = 30, max_batch_size: int = 100):
+        """
+        Initialize aggregator.
+
+        Args:
+            window_seconds: Time window for aggregation (default 30s)
+            max_batch_size: Maximum batch size before forced publishing
+        """
+        self.window = timedelta(seconds=window_seconds)
+        self.max_batch_size = max_batch_size
+        self.batches: Dict[str, List[SecurityAlert]] = {}
+        self.batch_timestamps: Dict[str, datetime] = {}
+
+    def _get_batch_key(self, alert: SecurityAlert) -> str:
+        """
+        Generate batch key for alert aggregation.
+
+        Alerts with the same key will be aggregated together.
+
+        Args:
+            alert: SecurityAlert
+
+        Returns:
+            Batch key string
+        """
+        # Key based on alert type, severity, and source/target IPs
+        key_parts = [
+            alert.alert_type.value,
+            alert.severity.value,
+            alert.source_ip or "",
+            alert.target_ip or "",
+            alert.asset_id or "",
+        ]
+
+        return "|".join(key_parts)
+
+    def add_alert(self, alert: SecurityAlert) -> Optional[List[SecurityAlert]]:
+        """
+        Add alert to aggregation batch.
+
+        Args:
+            alert: Alert to add
+
+        Returns:
+            Batch of alerts if ready to publish, None otherwise
+        """
+        batch_key = self._get_batch_key(alert)
+        current_time = datetime.utcnow()
+
+        # Initialize batch if needed
+        if batch_key not in self.batches:
+            self.batches[batch_key] = []
+            self.batch_timestamps[batch_key] = current_time
+
+        # Add alert to batch
+        self.batches[batch_key].append(alert)
+
+        # Check if batch should be published
+        batch_age = current_time - self.batch_timestamps[batch_key]
+        batch_size = len(self.batches[batch_key])
+
+        should_publish = (
+            batch_size >= self.max_batch_size or
+            batch_age >= self.window
+        )
+
+        if should_publish:
+            batch = self.batches.pop(batch_key, [])
+            self.batch_timestamps.pop(batch_key, None)
+            return batch
+
+        return None
+
+    def flush_all(self) -> List[List[SecurityAlert]]:
+        """
+        Flush all pending batches.
+
+        Returns:
+            List of all pending batches
+        """
+        all_batches = []
+
+        for batch_key in list(self.batches.keys()):
+            batch = self.batches.pop(batch_key, [])
+            self.batch_timestamps.pop(batch_key, None)
+            if batch:
+                all_batches.append(batch)
+
+        return all_batches
+
+    def get_stats(self) -> Dict[str, Any]:
+        """
+        Get aggregation statistics.
+
+        Returns:
+            Statistics dictionary
+        """
+        return {
+            "active_batches": len(self.batches),
+            "total_alerts_buffered": sum(len(batch) for batch in self.batches.values()),
+            "window_seconds": self.window.total_seconds(),
+            "max_batch_size": self.max_batch_size,
+        }
+
+
+# Global aggregator instance
+# TODO: Make these configurable via environment variables or config file
+aggregator = AlertAggregator(
+    window_seconds=30,  # Default 30-second aggregation window
+    max_batch_size=100,  # Default max batch size
+)
+
+
+# =============================================================================
 # Background Task: Message Consumer
 # =============================================================================
 
@@ -457,8 +518,15 @@ async def consume_alerts():
 
     async def process_message(message: dict):
         try:
-            payload = message.get("payload", {})
-            message_id = message.get("message_id", "unknown")
+            # Unwrap message envelope if present (publisher wraps with _meta and data)
+            if "data" in message and isinstance(message["data"], dict):
+                actual_message = message["data"]
+                meta = message.get("_meta", {})
+                message_id = meta.get("message_id", actual_message.get("message_id", str(uuid.uuid4())))
+                payload = actual_message.get("payload", actual_message)
+            else:
+                payload = message.get("payload", message)
+                message_id = message.get("message_id", str(uuid.uuid4()))
 
             logger.info(f"Processing message {message_id}")
 
@@ -470,49 +538,125 @@ async def consume_alerts():
                 logger.info(f"Duplicate alert skipped: {message_id}")
                 return
 
-            # Normalize alert
+            # Normalize alert using processor
             normalized = normalize_alert(payload, source_type)
 
-            # Extract IOCs
-            iocs = extract_iocs(payload)
+            # Add to aggregator
+            batch = aggregator.add_alert(normalized)
 
-            # Add IOCs to normalized data
-            if iocs:
-                normalized.normalized_data["iocs"] = iocs
-
-            # Publish normalized alert
-            normalized_message = {
-                "message_id": str(uuid.uuid4()),
-                "message_type": "alert.normalized",
-                "correlation_id": normalized.alert_id,
-                "original_message_id": message_id,
-                "timestamp": datetime.utcnow().isoformat(),
-                "version": "1.0",
-                "source_type": source_type,
-                "payload": normalized.model_dump(),
-            }
-
-            await publisher.publish("alert.normalized", normalized_message)
-
-            logger.info(
-                "Alert normalized successfully",
-                extra={
-                    "message_id": message_id,
-                    "alert_id": normalized.alert_id,
-                    "source_type": source_type,
-                    "alert_type": normalized.alert_type.value,
-                },
-            )
+            # If batch is ready, publish all alerts in batch
+            if batch:
+                await publish_batch(batch, message_id, source_type)
+            else:
+                # Publish single alert immediately if not aggregating
+                await publish_single_alert(normalized, message_id, source_type)
 
         except ValueError as e:
             logger.warning(f"Validation error: {e}")
-            # TODO: Send to dead letter queue
+            # Consumer will send to DLQ based on retry policy
         except Exception as e:
             logger.error(f"Normalization failed: {e}", exc_info=True)
-            # TODO: Send to dead letter queue
+            # Consumer will send to DLQ based on retry policy
 
     # Start consuming
     await consumer.consume(process_message)
+
+
+async def publish_single_alert(
+    alert: SecurityAlert,
+    original_message_id: str,
+    source_type: str,
+):
+    """
+    Publish a single normalized alert.
+
+    Args:
+        alert: Normalized alert
+        original_message_id: Original message ID
+        source_type: Source system type
+    """
+    normalized_message = {
+        "message_id": str(uuid.uuid4()),
+        "message_type": "alert.normalized",
+        "correlation_id": alert.alert_id,
+        "original_message_id": original_message_id,
+        "timestamp": datetime.utcnow().isoformat(),
+        "version": "1.0",
+        "source_type": source_type,
+        "aggregation_count": 1,
+        "payload": alert.model_dump(),
+    }
+
+    # Publish with priority based on severity
+    priority = {
+        Severity.CRITICAL: 10,
+        Severity.HIGH: 8,
+        Severity.MEDIUM: 5,
+        Severity.LOW: 3,
+        Severity.INFO: 1,
+    }.get(alert.severity, 5)
+
+    await publisher.publish(
+        "alert.normalized",
+        normalized_message,
+        priority=priority,
+        persistent=True,
+    )
+
+    logger.info(f"Alert normalized and published (message_id: {original_message_id}, alert_id: {alert.alert_id}, source_type: {source_type}, alert_type: {alert.alert_type.value}, severity: {alert.severity.value})")
+
+
+async def publish_batch(
+    alerts: List[SecurityAlert],
+    original_message_id: str,
+    source_type: str,
+):
+    """
+    Publish a batch of normalized alerts.
+
+    Args:
+        alerts: List of normalized alerts
+        original_message_id: Original message ID
+        source_type: Source system type
+    """
+    if not alerts:
+        return
+
+    # Create aggregated message
+    batch_message = {
+        "message_id": str(uuid.uuid4()),
+        "message_type": "alert.normalized.batch",
+        "correlation_id": alerts[0].alert_id,
+        "original_message_id": original_message_id,
+        "timestamp": datetime.utcnow().isoformat(),
+        "version": "1.0",
+        "source_type": source_type,
+        "aggregation_count": len(alerts),
+        "payload": [alert.model_dump() for alert in alerts],
+    }
+
+    # Determine priority based on highest severity in batch
+    highest_severity = max(
+        (alert.severity for alert in alerts),
+        key=lambda s: {Severity.CRITICAL: 10, Severity.HIGH: 8, Severity.MEDIUM: 5, Severity.LOW: 3, Severity.INFO: 1}.get(s, 0)
+    )
+
+    priority = {
+        Severity.CRITICAL: 10,
+        Severity.HIGH: 8,
+        Severity.MEDIUM: 5,
+        Severity.LOW: 3,
+        Severity.INFO: 1,
+    }.get(highest_severity, 5)
+
+    await publisher.publish(
+        "alert.normalized",
+        batch_message,
+        priority=priority,
+        persistent=True,
+    )
+
+    logger.info(f"Alert batch normalized and published (message_id: {original_message_id}, batch_size: {len(alerts)}, source_type: {source_type}, highest_severity: {highest_severity.value})")
 
 
 # =============================================================================
@@ -547,10 +691,25 @@ async def health_check():
 @app.get("/metrics", tags=["Metrics"])
 async def get_metrics():
     """Get normalization metrics."""
+    agg_stats = aggregator.get_stats()
+
+    # Get processor stats
+    processor_stats = {}
+    for source_type, processor in PROCESSORS.items():
+        stats = processor.get_stats()
+        processor_stats[source_type] = {
+            "processed": stats.get("processed_count", 0),
+            "errors": stats.get("error_count", 0),
+            "success_rate": stats.get("success_rate", 0.0),
+        }
+
     return {
-        "processed_alerts": len(processed_alerts_cache),
-        "cache_size": len(processed_alerts_cache),
-        "cache_max_size": CACHE_MAX_SIZE,
+        "cache": {
+            "size": len(processed_alerts_cache),
+            "max_size": CACHE_MAX_SIZE,
+        },
+        "aggregation": agg_stats,
+        "processors": processor_stats,
         "service": "alert-normalizer",
     }
 

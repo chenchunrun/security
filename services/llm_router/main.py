@@ -15,6 +15,7 @@
 """LLM Router Service - Intelligently routes requests to DeepSeek or Qwen models."""
 
 import asyncio
+import os
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -24,7 +25,7 @@ from typing import Any, Dict, Optional
 import httpx
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from shared.database import get_database_manager
+from shared.database import DatabaseManager, close_database, get_database_manager, init_database
 from shared.models import (
     LLMChoice,
     LLMMessage,
@@ -112,24 +113,43 @@ async def lifespan(app: FastAPI):
 
     logger.info("Starting LLM Router service...")
 
-    # Initialize database
-    db_manager = get_database_manager()
-    await db_manager.initialize()
+    try:
+        # Initialize database FIRST before getting manager
+        await init_database(
+            database_url=config.database_url,
+            pool_size=int(os.getenv("DB_POOL_SIZE", "10")),
+            max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "20")),
+            echo=config.debug,
+        )
+        db_manager = get_database_manager()
+        logger.info("✓ Database connected")
 
-    # Initialize HTTP client for LLM API calls
-    http_client = httpx.AsyncClient(
-        timeout=httpx.Timeout(60.0, connect=10.0),
-        limits=httpx.Limits(max_keepalive_connections=50, max_connections=100),
-    )
+        # Initialize HTTP client for LLM API calls
+        http_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(60.0, connect=10.0),
+            limits=httpx.Limits(max_keepalive_connections=50, max_connections=100),
+        )
+        logger.info("✓ HTTP client initialized")
 
-    logger.info("LLM Router service started successfully")
+        logger.info("✓ LLM Router service started successfully")
 
-    yield
+        yield
 
-    # Cleanup
-    await http_client.aclose()
-    await db_manager.close()
-    logger.info("LLM Router service stopped")
+    except Exception as e:
+        logger.error(f"Failed to start service: {e}")
+        raise
+
+    finally:
+        # Cleanup
+        if http_client:
+            await http_client.aclose()
+            logger.info("✓ HTTP client closed")
+
+        # Close database using the close_database function
+        await close_database()
+        logger.info("✓ Database connection closed")
+
+        logger.info("✓ LLM Router service stopped")
 
 
 app = FastAPI(
@@ -362,14 +382,14 @@ async def chat_completions(request: LLMRequest):
 
         # Get API key from environment
         if decision.selected_provider == LLMProvider.DEEPSEEK:
-            api_key = config.get("DEEPSEEK_API_KEY")
+            api_key = os.getenv("DEEPSEEK_API_KEY")
             if not api_key:
                 raise HTTPException(status_code=500, detail="DEEPSEEK_API_KEY not configured")
 
             response = await call_deepseek(request, decision, api_key)
 
         else:  # QWEN
-            api_key = config.get("QWEN_API_KEY")
+            api_key = os.getenv("QWEN_API_KEY")
             if not api_key:
                 raise HTTPException(status_code=500, detail="QWEN_API_KEY not configured")
 
@@ -457,8 +477,8 @@ async def health_check():
     }
 
     # Check API keys
-    deepseek_key = config.get("DEEPSEEK_API_KEY")
-    qwen_key = config.get("QWEN_API_KEY")
+    deepseek_key = os.getenv("DEEPSEEK_API_KEY")
+    qwen_key = os.getenv("QWEN_API_KEY")
 
     health_status["api_keys"] = {
         "deepseek": "configured" if deepseek_key else "missing",

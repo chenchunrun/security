@@ -23,28 +23,35 @@ WORKDIR /app
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app/services/shared:/app/services/alert_ingestor:/app
+    PYTHONPATH=/app/services:/app
 
-# Install system dependencies
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+# Use China mirrors for faster downloads
+RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources || \
+    sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list.d/debian.sources || \
+    sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list.d/debian.sources
+
+# Install system dependencies with retry logic for Debian mirrors
+RUN for i in 1 2 3; do \
+    apt-get update && \
+    apt-get install -y --fix-missing --no-install-recommends \
         gcc \
         g++ \
-        && rm -rf /var/lib/apt/lists/*
+        && rm -rf /var/lib/apt/lists/* && break || sleep 15; \
+    done
 
 # Copy requirements first for better caching
 # Build context is ./services/alert_ingestor, so use relative paths
-COPY requirements.txt /app/
+COPY ./services/alert_ingestor/requirements.txt /app/
 
 # Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r /app/requirements.txt
 
 # Copy shared module (parent directory relative to build context)
-COPY ../shared /app/services/shared
+COPY ./services/shared /app/services/shared
 
 # Copy service code (current directory)
-COPY . /app/services/alert_ingestor
+COPY ./services/alert_ingestor /app/services/alert_ingestor
 
 # Create non-root user
 RUN useradd -m -u 1001 appuser && \
@@ -60,4 +67,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"
 
 # Run application
-CMD ["python", "main.py"]
+CMD ["python", "services/alert_ingestor/main.py"]

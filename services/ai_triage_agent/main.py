@@ -25,6 +25,7 @@ This service consumes enriched alerts and performs AI-powered analysis:
 
 import asyncio
 import json
+import os
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -33,7 +34,8 @@ from typing import Any, Dict, Optional
 import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from shared.database import DatabaseManager, get_database_manager
+from sqlalchemy import text
+from shared.database import DatabaseManager, close_database, get_database_manager, init_database
 from shared.messaging import MessageConsumer, MessagePublisher
 from shared.models import SecurityAlert
 from shared.utils import Config, get_logger
@@ -552,8 +554,8 @@ async def get_llm_route_from_router(task_type: str, complexity: str) -> Dict[str
             return {
                 "model": "qwen-plus",
                 "provider": "qwen",
-                "base_url": config.get("qwen_base_url", "http://internal-maas.qwen/v1"),
-                "api_key": config.get("qwen_api_key", "internal-key-456"),
+                "base_url": getattr(config, "qwen_base_url", "http://internal-maas.qwen/v1"),
+                "api_key": getattr(config, "qwen_api_key", "internal-key-456"),
             }
 
     except Exception as e:
@@ -562,8 +564,8 @@ async def get_llm_route_from_router(task_type: str, complexity: str) -> Dict[str
         return {
             "model": "qwen-plus",
             "provider": "qwen",
-            "base_url": config.get("qwen_base_url", "http://internal-maas.qwen/v1"),
-            "api_key": config.get("qwen_api_key", "internal-key-456"),
+            "base_url": getattr(config, "qwen_base_url", "http://internal-maas.qwen/v1"),
+            "api_key": getattr(config, "qwen_api_key", "internal-key-456"),
         }
 
 
@@ -612,15 +614,7 @@ async def triage_alert(
         system_prompt = get_system_prompt(alert.alert_type)
         user_prompt = build_triage_prompt(alert, enrichment)
 
-        logger.info(
-            f"Triaging alert {alert.alert_id} with model {route_decision.get('model', 'unknown')}",
-            extra={
-                "alert_id": alert.alert_id,
-                "alert_type": alert.alert_type,
-                "complexity": complexity,
-                "model": route_decision.get("model", "unknown"),
-            },
-        )
+        logger.info(f"Triaging alert {alert.alert_id} with model {route_decision.get('model', 'unknown')} (alert_type: {alert.alert_type}, complexity: {complexity})")
 
         # Call LLM API
         llm_response = await call_llm_api(
@@ -649,15 +643,7 @@ async def triage_alert(
             }
         )
 
-        logger.info(
-            f"Alert triaged successfully: {alert.alert_id}",
-            extra={
-                "alert_id": alert.alert_id,
-                "risk_level": triage_result.get("risk_level"),
-                "confidence": triage_result.get("confidence"),
-                "processing_time": processing_time,
-            },
-        )
+        logger.info(f"Alert triaged successfully: {alert.alert_id} (risk_level: {triage_result.get('risk_level')}, confidence: {triage_result.get('confidence')}, processing_time: {processing_time}s)")
 
         return triage_result
 
@@ -698,9 +684,14 @@ async def lifespan(app: FastAPI):
     logger.info("Starting AI Triage Agent Service")
 
     try:
-        # Initialize database
+        # Initialize database FIRST before getting manager
+        await init_database(
+            database_url=config.database_url,
+            pool_size=int(os.getenv("DB_POOL_SIZE", "10")),
+            max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "20")),
+            echo=config.debug,
+        )
         db_manager = get_database_manager()
-        await db_manager.initialize()
         logger.info("✓ Database connected")
 
         # Initialize HTTP client
@@ -716,6 +707,10 @@ async def lifespan(app: FastAPI):
         consumer = MessageConsumer(config.rabbitmq_url, "alert.enriched")
         await consumer.connect()
         logger.info("✓ Message consumer connected")
+
+        # Start message consumer task
+        asyncio.create_task(consume_alerts())
+        logger.info("✓ Message consumer task started")
 
         logger.info("✓ AI Triage Agent Service started successfully")
 
@@ -740,9 +735,9 @@ async def lifespan(app: FastAPI):
             await http_client.aclose()
             logger.info("✓ HTTP client closed")
 
-        if db_manager:
-            await db_manager.close()
-            logger.info("✓ Database connection closed")
+        # Close database using the close_database function
+        await close_database()
+        logger.info("✓ Database connection closed")
 
         logger.info("✓ AI Triage Agent Service stopped")
 
@@ -769,13 +764,63 @@ app.add_middleware(
 # =============================================================================
 
 
+async def persist_triage_result_to_db(alert_id: str, triage_result: Dict[str, Any]):
+    """
+    Persist triage result to database.
+
+    Args:
+        alert_id: Alert identifier
+        triage_result: Triage result dictionary
+    """
+    try:
+        async with db_manager.get_session() as session:
+            await session.execute(
+                text("""
+                    INSERT INTO triage_results (alert_id, risk_score, risk_level, confidence_score,
+                                                 analysis_result, recommended_actions, requires_human_review)
+                    VALUES (:alert_id, :risk_score, :risk_level, :confidence_score,
+                            :analysis_result, :recommended_actions, :requires_human_review)
+                    ON CONFLICT (alert_id) DO UPDATE SET
+                        risk_score = EXCLUDED.risk_score,
+                        risk_level = EXCLUDED.risk_level,
+                        confidence_score = EXCLUDED.confidence_score,
+                        analysis_result = EXCLUDED.analysis_result,
+                        recommended_actions = EXCLUDED.recommended_actions,
+                        requires_human_review = EXCLUDED.requires_human_review,
+                        updated_at = NOW()
+                """),
+                {
+                    "alert_id": alert_id,
+                    "risk_score": triage_result.get("risk_score", 50),
+                    "risk_level": triage_result.get("risk_level", "medium"),
+                    "confidence_score": triage_result.get("confidence", 0.5),
+                    "analysis_result": triage_result.get("analysis", "No analysis provided"),
+                    "recommended_actions": json.dumps(triage_result.get("recommended_actions", [])),
+                    "requires_human_review": triage_result.get("requires_human_review", False),
+                }
+            )
+            await session.commit()
+            logger.debug(f"Triage result persisted for alert {alert_id}")
+
+    except Exception as e:
+        logger.error(f"Failed to persist triage result: {e}", exc_info=True)
+
+
 async def consume_alerts():
     """Consume enriched alerts and perform AI triage."""
 
     async def process_message(message: dict):
         try:
-            payload = message.get("payload", {})
-            message_id = message.get("message_id", "unknown")
+            # Unwrap message envelope if present (publisher wraps with _meta and data)
+            if "data" in message and isinstance(message["data"], dict):
+                actual_message = message["data"]
+                meta = message.get("_meta", {})
+                message_id = meta.get("message_id", message.get("message_id", "unknown"))
+            else:
+                actual_message = message
+                message_id = message.get("message_id", "unknown")
+
+            payload = actual_message.get("payload", actual_message)
 
             logger.info(f"Processing message {message_id}")
 
@@ -791,6 +836,9 @@ async def consume_alerts():
 
             # Perform triage
             triage_result = await triage_alert(alert, enrichment)
+
+            # Persist triage result to database
+            await persist_triage_result_to_db(alert.alert_id, triage_result)
 
             # Create result message
             result_message = {
@@ -810,19 +858,12 @@ async def consume_alerts():
             # Publish result
             await publisher.publish("alert.result", result_message)
 
-            logger.info(
-                "Alert triage completed",
-                extra={
-                    "message_id": message_id,
-                    "alert_id": alert.alert_id,
-                    "risk_level": triage_result.get("risk_level"),
-                    "processing_time": triage_result.get("processing_time_seconds"),
-                },
-            )
+            logger.info(f"Alert triage completed (message_id: {message_id}, alert_id: {alert.alert_id}, risk_level: {triage_result.get('risk_level')}, processing_time: {triage_result.get('processing_time_seconds')}s)")
 
         except Exception as e:
             logger.error(f"Triage processing failed: {e}", exc_info=True)
-            # TODO: Send to dead letter queue
+            # Re-raise to let consumer handle retries and DLQ
+            raise
 
     # Start consuming
     await consumer.consume(process_message)
