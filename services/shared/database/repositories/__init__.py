@@ -16,10 +16,14 @@
 
 from .alert_repository import AlertRepository
 from .base import BaseRepository
+from .settings_repository import SettingsRepository
 from .triage_repository import TriageRepository
+from .workflow_repository import WorkflowRepository
 
 __all__ = [
     "BaseRepository",
     "AlertRepository",
     "TriageRepository",
+    "SettingsRepository",
+    "WorkflowRepository",
 ]
