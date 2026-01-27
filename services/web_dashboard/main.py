@@ -2892,7 +2892,17 @@ async def analyze_alert_with_ai(request: Request):
             def get_config_value(key: str) -> Any:
                 """Get config value, decrypting if it's sensitive."""
                 config = configs.get(key, {})
-                value = config.get("value", "") if isinstance(config, dict) else config
+                if not isinstance(config, dict):
+                    return config
+
+                # Extract value from nested structure
+                # configs[key] = {"value": {...}, "category": "..."}
+                # The inner "value" might be {"value": actual_value} due to how we store it
+                value = config.get("value", "")
+
+                # Handle double nesting: {"value": {"value": actual_value}}
+                if isinstance(value, dict) and "value" in value:
+                    value = value["value"]
 
                 # Decrypt sensitive values
                 if key in SENSITIVE_CONFIG_KEYS and value:
@@ -2960,8 +2970,19 @@ async def analyze_alert_with_ai(request: Request):
                 client = OpenAIClient(api_key=api_key, base_url=base_url, model=model)
 
         # Get temperature and max_tokens from config
-        temperature = configs.get("temperature", {}).get("value", 0.0)
-        max_tokens = configs.get("max_tokens", {}).get("value", 2000)
+        temperature = get_config_value("temperature") or 0.0
+        max_tokens = get_config_value("max_tokens") or 2000
+
+        # Ensure they are the correct type
+        try:
+            temperature = float(temperature)
+        except (ValueError, TypeError):
+            temperature = 0.0
+
+        try:
+            max_tokens = int(max_tokens)
+        except (ValueError, TypeError):
+            max_tokens = 2000
 
         # Analyze the alert
         result = await client.analyze_alert(alert_data, context, temperature=temperature, max_tokens=max_tokens)
@@ -2986,10 +3007,10 @@ async def analyze_alert_with_ai(request: Request):
 
 @app.post("/api/v1/ai/batch-analyze")
 async def batch_analyze_alerts_with_ai(request: Request):
-    """Analyze multiple alerts using Zhipu AI."""
+    """Analyze multiple alerts using configured LLM provider."""
     try:
         import json
-        from llm_client import get_zhipu_client
+        from llm_client import ZhipuAIClient, DeepSeekClient, QwenClient, OpenAIClient
 
         body = await request.body()
         data = json.loads(body) if body else {}
@@ -3002,13 +3023,102 @@ async def batch_analyze_alerts_with_ai(request: Request):
                 status_code=400,
             )
 
-        # Get Zhipu AI client
-        client = get_zhipu_client()
+        # Get LLM configuration from database
+        async with db_manager.get_session() as session:
+            from shared.database.repositories import SettingsRepository
+            repo = SettingsRepository(session)
+
+            configs = await repo.get_all_configs()
+
+            # Helper function to get and decrypt config value
+            def get_config_value(key: str) -> Any:
+                """Get config value, decrypting if it's sensitive."""
+                config = configs.get(key, {})
+                if not isinstance(config, dict):
+                    return config
+
+                # Extract value from nested structure
+                value = config.get("value", "")
+
+                # Handle double nesting: {"value": {"value": actual_value}}
+                if isinstance(value, dict) and "value" in value:
+                    value = value["value"]
+
+                # Decrypt sensitive values
+                if key in SENSITIVE_CONFIG_KEYS and value:
+                    try:
+                        return safe_decrypt(str(value))
+                    except Exception as e:
+                        logger.warning(f"Failed to decrypt {key}: {e}")
+                        return ""
+                return value
+
+            # Get LLM provider and API key
+            llm_provider = get_config_value("llm_provider") or "zhipu"
+
+            # Get API key and configuration for selected provider
+            if llm_provider == "zhipu":
+                api_key = get_config_value("zhipu_api_key")
+                base_url = get_config_value("zhipu_base_url") or "https://open.bigmodel.cn/api/paas/v4/"
+                model = get_config_value("zhipu_model") or "glm-4-flash"
+
+                if not api_key:
+                    return JSONResponse(
+                        content={"success": False, "error": "Zhipu AI API key not configured. Please configure it in Settings > AI Models"},
+                        status_code=400,
+                    )
+
+                client = ZhipuAIClient(api_key=api_key, base_url=base_url, model=model)
+
+            elif llm_provider == "deepseek":
+                api_key = get_config_value("deepseek_api_key")
+                base_url = get_config_value("deepseek_base_url") or "https://api.deepseek.com/v1"
+                model = get_config_value("deepseek_model") or "deepseek-v3"
+
+                if not api_key:
+                    return JSONResponse(
+                        content={"success": False, "error": "DeepSeek API key not configured. Please configure it in Settings > AI Models"},
+                        status_code=400,
+                    )
+
+                client = DeepSeekClient(api_key=api_key, base_url=base_url, model=model)
+
+            elif llm_provider == "qwen":
+                api_key = get_config_value("qwen_api_key")
+                base_url = get_config_value("qwen_base_url") or "https://dashscope.aliyuncs.com/compatible-mode/v1"
+                model = get_config_value("qwen_model") or "qwen3-max"
+
+                if not api_key:
+                    return JSONResponse(
+                        content={"success": False, "error": "Qwen API key not configured. Please configure it in Settings > AI Models"},
+                        status_code=400,
+                    )
+
+                client = QwenClient(api_key=api_key, base_url=base_url, model=model)
+
+            elif llm_provider == "openai":
+                api_key = get_config_value("openai_api_key")
+                base_url = get_config_value("openai_base_url") or "https://api.openai.com/v1"
+                model = get_config_value("openai_model") or "gpt-4"
+
+                if not api_key:
+                    return JSONResponse(
+                        content={"success": False, "error": "OpenAI API key not configured. Please configure it in Settings > AI Models"},
+                        status_code=400,
+                    )
+
+                client = OpenAIClient(api_key=api_key, base_url=base_url, model=model)
+
+            else:
+                return JSONResponse(
+                    content={"success": False, "error": f"Unknown LLM provider: {llm_provider}"},
+                    status_code=400,
+                )
 
         # Analyze alerts in batch
         results = await client.batch_analyze_alerts(alerts)
 
-        logger.info(f"Batch analyzed {len(alerts)} alerts with AI")
+        logger.info(f"Batch analyzed {len(alerts)} alerts with AI using {llm_provider}")
 
         return {
             "success": True,
