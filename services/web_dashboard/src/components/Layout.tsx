@@ -17,6 +17,7 @@ import {
   X,
   Shield,
   Zap,
+  Activity,
 } from 'lucide-react'
 
 const navigation = [
@@ -24,6 +25,7 @@ const navigation = [
   { name: 'Alerts', href: '/alerts', icon: AlertTriangle },
   { name: 'Reports', href: '/reports', icon: FileText },
   { name: 'Automation', href: '/automation', icon: Zap },
+  { name: 'Workflows', href: '/workflows', icon: Activity },
   { name: 'Notifications', href: '/notifications', icon: Bell },
   { name: 'Settings', href: '/settings', icon: Settings },
 ]

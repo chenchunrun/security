@@ -15,6 +15,7 @@ import { Reports } from '@/pages/Reports'
 import { Settings } from '@/pages/Settings'
 import { Automation } from '@/pages/Automation'
 import { Notifications } from '@/pages/Notifications'
+import { Workflows } from '@/pages/Workflows'
 
 // Protected Route Wrapper
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -81,6 +82,7 @@ function App() {
         <Route path="alerts/:id" element={<AlertDetail />} />
         <Route path="reports" element={<Reports />} />
         <Route path="automation" element={<Automation />} />
+        <Route path="workflows" element={<Workflows />} />
         <Route path="notifications" element={<Notifications />} />
         <Route path="settings" element={<Settings />} />
       </Route>
