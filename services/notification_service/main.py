@@ -45,6 +45,11 @@ class NotificationChannel(str, Enum):
     SLACK = "slack"
     WEBHOOK = "webhook"
     IN_APP = "in_app"
+    DINGTALK = "dingtalk"
+    WECHAT_WORK = "wechat_work"
+    TEAMS = "teams"
+    WEBEX = "webex"
+    PAGERDUTY = "pagerduty"
 
 
 class NotificationPriority(str, Enum):
@@ -177,6 +182,113 @@ async def send_webhook(
         return {"success": False, "channel": "webhook", "error": str(e)}
 
 
+async def send_dingtalk(
+    webhook_url: str, message: str, at_mobiles: Optional[List[str]] = None, at_all: bool = False
+) -> Dict[str, Any]:
+    """Send DingTalk notification."""
+    try:
+        payload = {
+            "msgtype": "text",
+            "text": {
+                "content": message,
+            },
+            "at": {
+                "atMobiles": at_mobiles or [],
+                "isAtAll": at_all,
+            },
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(webhook_url, json=payload, timeout=10.0)
+            response.raise_for_status()
+
+        logger.info(f"DingTalk message sent")
+
+        return {"success": True, "channel": "dingtalk", "webhook_url": webhook_url}
+
+    except Exception as e:
+        logger.error(f"Failed to send DingTalk message: {e}", exc_info=True)
+        return {"success": False, "channel": "dingtalk", "error": str(e)}
+
+
+async def send_wechat_work(
+    webhook_url: str, message: str, mentioned_list: Optional[List[str]] = None
+) -> Dict[str, Any]:
+    """Send WeChat Work notification."""
+    try:
+        payload = {
+            "msgtype": "text",
+            "text": {
+                "content": message,
+                "mentioned_list": mentioned_list or [],
+            },
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(webhook_url, json=payload, timeout=10.0)
+            response.raise_for_status()
+
+        logger.info(f"WeChat Work message sent")
+
+        return {"success": True, "channel": "wechat_work", "webhook_url": webhook_url}
+
+    except Exception as e:
+        logger.error(f"Failed to send WeChat Work message: {e}", exc_info=True)
+        return {"success": False, "channel": "wechat_work", "error": str(e)}
+
+
+async def send_teams(webhook_url: str, title: str, message: str, summary: Optional[str] = None) -> Dict[str, Any]:
+    """Send Microsoft Teams notification."""
+    try:
+        payload = {
+            "@type": "MessageCard",
+            "@context": "https://schema.org/extensions",
+            "summary": summary or title,
+            "themeColor": "0078D7",
+            "title": title,
+            "text": message,
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(webhook_url, json=payload, timeout=10.0)
+            response.raise_for_status()
+
+        logger.info(f"Teams message sent")
+
+        return {"success": True, "channel": "teams", "webhook_url": webhook_url}
+
+    except Exception as e:
+        logger.error(f"Failed to send Teams message: {e}", exc_info=True)
+        return {"success": False, "channel": "teams", "error": str(e)}
+
+
+async def send_pagerduty(
+    api_key: str, routing_key: str, event_action: str, payload: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Send PagerDuty notification."""
+    try:
+        pd_payload = {
+            "routing_key": routing_key,
+            "event_action": event_action,
+            "payload": payload,
+        }
+
+        headers = {"Authorization": f"Token token={api_key}"}
+        url = "https://events.pagerduty.com/v2/enqueue"
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, json=pd_payload, headers=headers, timeout=10.0)
+            response.raise_for_status()
+
+        logger.info(f"PagerDuty event sent")
+
+        return {"success": True, "channel": "pagerduty"}
+
+    except Exception as e:
+        logger.error(f"Failed to send PagerDuty event: {e}", exc_info=True)
+        return {"success": False, "channel": "pagerduty", "error": str(e)}
+
+
 async def send_notification(
     channel: NotificationChannel,
     recipient: str,
@@ -205,6 +317,27 @@ async def send_notification(
             # TODO: Store in-app notification in database
             logger.info(f"In-app notification for {recipient}: {message}")
             return {"success": True, "channel": "in_app"}
+
+        elif channel == NotificationChannel.DINGTALK:
+            at_mobiles = data.get("at_mobiles") if data else None
+            at_all = data.get("at_all", False) if data else False
+            return await send_dingtalk(recipient, message, at_mobiles, at_all)
+
+        elif channel == NotificationChannel.WECHAT_WORK:
+            mentioned_list = data.get("mentioned_list") if data else None
+            return await send_wechat_work(recipient, message, mentioned_list)
+
+        elif channel == NotificationChannel.TEAMS:
+            return await send_teams(recipient, subject, message)
+
+        elif channel == NotificationChannel.PAGERDUTY:
+            pd_data = data or {}
+            return await send_pagerduty(
+                api_key=pd_data.get("api_key", ""),
+                routing_key=pd_data.get("routing_key", ""),
+                event_action=pd_data.get("event_action", "trigger"),
+                payload=pd_data.get("payload", {"summary": message}),
+            )
 
         else:
             raise ValueError(f"Unsupported channel: {channel}")
