@@ -20,6 +20,7 @@ import {
   ExternalLink,
   AlertTriangle,
   CheckCircle2,
+  History,
 } from 'lucide-react'
 
 const severityColors = {
@@ -59,6 +60,14 @@ export const AlertDetail: React.FC = () => {
     queryKey: ['alert', id],
     queryFn: () => api.alerts.getAlert(id!),
     enabled: !!id,
+  })
+
+  // Fetch similar alerts
+  const { data: similarAlerts } = useQuery({
+    queryKey: ['similar-alerts', id],
+    queryFn: () => api.similarity.findSimilar(id!, 3),
+    enabled: !!id,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   })
 
   // Update status mutation
@@ -287,6 +296,64 @@ export const AlertDetail: React.FC = () => {
                     type="url"
                   />
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Similar Alerts */}
+          {similarAlerts && similarAlerts.results && similarAlerts.results.length > 0 && (
+            <div className="card">
+              <div className="card-header">
+                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <History className="w-5 h-5" />
+                  Similar Historical Alerts
+                  <span className="text-sm font-normal text-gray-500">
+                    ({similarAlerts.total_results} found)
+                  </span>
+                </h2>
+              </div>
+              <div className="card-body">
+                <div className="space-y-3">
+                  {similarAlerts.results.map((similarAlert, idx) => (
+                    <div
+                      key={idx}
+                      className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Link
+                              to={`/alerts/${similarAlert.alert_id}`}
+                              className="font-medium text-primary-600 hover:underline"
+                            >
+                              {similarAlert.alert_id}
+                            </Link>
+                            <span className={`badge badge-sm ${
+                              similarAlert.risk_level === 'critical' || similarAlert.risk_level === 'high'
+                                ? 'badge-high'
+                                : similarAlert.risk_level === 'medium'
+                                ? 'badge-medium'
+                                : 'badge-low'
+                            }`}>
+                              {similarAlert.risk_level || 'unknown'}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              Similarity: {(similarAlert.similarity_score * 100).toFixed(1)}%
+                            </span>
+                          </div>
+                          {similarAlert.alert_data?.description && (
+                            <p className="text-sm text-gray-600 line-clamp-2">
+                              {similarAlert.alert_data.description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Created: {new Date(similarAlert.created_at).toLocaleString()}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}

@@ -74,7 +74,9 @@
       "Bash(docker restart:*)",
       "Bash(docker cp:*)",
       "Bash(echo:*)",
-      "Bash(docker info:*)"
+      "Bash(docker info:*)",
+      "Bash(git rm:*)",
+      "Bash(docker ps:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

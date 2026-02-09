@@ -642,6 +642,37 @@ export const threatIntelApi = {
   },
 }
 
+// =============================================================================
+// Similarity Search API
+//=============================================================================
+
+interface SimilarAlert {
+  alert_id: string
+  similarity_score: number
+  alert_data?: Record<string, unknown>
+  risk_level?: string
+  created_at: string
+}
+
+interface SimilaritySearchResult {
+  results: SimilarAlert[]
+  total_results: number
+  search_time_ms: number
+}
+
+export const similarityApi = {
+  /**
+   * Find similar alerts using vector similarity search
+   */
+  findSimilar: async (alertId: string, topK: number = 3): Promise<SimilaritySearchResult> => {
+    const response = await apiClient.post<ApiResponse<SimilaritySearchResult>>(
+      '/similarity/search',
+      { alert_id: alertId, top_k: topK }
+    )
+    return response.data.data
+  },
+}
+
 // Update the main api export
 export const api = {
   auth: authApi,
@@ -653,6 +684,7 @@ export const api = {
   notifications: notificationApi,
   ai: aiApi,
   threatIntel: threatIntelApi,
+  similarity: similarityApi,
 }
 
 export default apiClient

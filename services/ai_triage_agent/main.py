@@ -52,8 +52,9 @@ publisher: MessagePublisher = None
 consumer: MessageConsumer = None
 http_client: httpx.AsyncClient = None
 
-# LLM Router endpoint
-LLM_ROUTER_URL = "http://llm-router:8000"  # Internal Docker network
+# Service endpoints
+LLM_ROUTER_URL = os.getenv("LLM_ROUTER_URL", "http://llm-router:8000")
+SIMILARITY_SEARCH_URL = os.getenv("SIMILARITY_SEARCH_URL", "http://similarity-search:9501")
 
 
 # =============================================================================
@@ -338,6 +339,22 @@ def build_triage_prompt(
                 if url_ti.get("sources_found", 0) > 0:
                     prompt_parts.append(f"- **Detected by {url_ti['sources_found']} sources**")
 
+        # Similar alerts (historical context)
+        if "similar_alerts" in enrichment:
+            similar = enrichment["similar_alerts"]
+            results = similar.get("results", [])
+            if results:
+                prompt_parts.append(f"")
+                prompt_parts.append(f"## Similar Historical Alerts")
+                prompt_parts.append(f"Found {len(results)} similar alert(s) from historical data:")
+                for i, similar_alert in enumerate(results[:5], 1):  # Top 5
+                    similarity = similar_alert.get("similarity_score", 0)
+                    risk = similar_alert.get("risk_level", "unknown")
+                    prompt_parts.append(f"{i}. Alert ID: {similar_alert.get('alert_id', 'unknown')} (similarity: {similarity:.2%}, risk: {risk})")
+                    if similar_alert.get("alert_data", {}).get("description"):
+                        desc = similar_alert["alert_data"]["description"]
+                        prompt_parts.append(f"   Description: {desc[:100]}...")
+
     prompt_parts.append(f"")
     prompt_parts.append(
         f"Please analyze this alert and provide your assessment in the required JSON format."
@@ -607,6 +624,12 @@ async def triage_alert(
             if "asset" in enrichment and enrichment["asset"].get("criticality") == "critical":
                 complexity = "high"
 
+        # Query similar alerts from historical data
+        similar_alerts = await query_similar_alerts(alert, top_k=3)
+        if similar_alerts.get("results"):
+            enrichment["similar_alerts"] = similar_alerts
+            logger.info(f"Found {len(similar_alerts['results'])} similar alerts for {alert.alert_id}")
+
         # Get routing decision from LLM Router
         route_decision = await get_llm_route_from_router("triage", complexity)
 
@@ -669,6 +692,55 @@ async def triage_alert(
             "processing_error": True,
             "error_message": str(e),
         }
+
+
+# =============================================================================
+# Similarity Search Client
+# =============================================================================
+
+
+async def query_similar_alerts(
+    alert: SecurityAlert,
+    top_k: int = 3,
+    min_similarity: float = 0.6,
+) -> Dict[str, Any]:
+    """
+    Query similar alerts using vector similarity search.
+
+    Args:
+        alert: Alert to find similar alerts for
+        top_k: Number of similar alerts to retrieve
+        min_similarity: Minimum similarity threshold (0-1)
+
+    Returns:
+        Similarity search results
+    """
+    try:
+        # Prepare request
+        request_data = {
+            "alert_data": alert.model_dump(),
+            "top_k": top_k,
+            "min_similarity": min_similarity,
+        }
+
+        # Query similarity search service
+        response = await http_client.post(
+            f"{SIMILARITY_SEARCH_URL}/api/v1/search",
+            json=request_data,
+            timeout=10.0,
+        )
+
+        if response.status_code == 200:
+            result = response.json()
+            if result.get("success"):
+                return result.get("data", {})
+
+        logger.warning(f"Similarity search failed for alert {alert.alert_id}: {response.status_code}")
+        return {}
+
+    except Exception as e:
+        logger.error(f"Similarity search error for alert {alert.alert_id}: {e}")
+        return {}
 
 
 # =============================================================================
