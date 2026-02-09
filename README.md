@@ -357,6 +357,7 @@ mypy services/
 
 ## 📖 Documentation
 
+- **[Development Roadmap](docs/DEVELOPMENT_ROADMAP.md)** - 🎯 Project status and development plan
 - **[Architecture Overview](docs/01_architecture_overview.md)** - System design and architecture
 - **[API Documentation](docs/05_api_design.md)** - REST API specifications
 - **[Development Standards](standards/README.md)** - Coding standards and best practices
