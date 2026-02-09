@@ -53,12 +53,17 @@ export interface Alert {
   description: string;
   source_ip?: string;
   destination_ip?: string;
-  iocs: IOC[];
-  timestamp: string;
+  target_ip?: string;  // Alias for destination_ip
+  iocs?: IOC[];
+  timestamp?: string;
   created_at: string;
   updated_at: string;
   assigned_to?: string;
-  tags: string[];
+  asset_id?: string;
+  user_id?: string;
+  file_hash?: string;
+  url?: string;
+  tags?: string[];
   metadata?: Record<string, unknown>;
 }
 

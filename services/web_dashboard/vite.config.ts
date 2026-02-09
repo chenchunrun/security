@@ -28,12 +28,17 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    // Add cache busting
     rollupOptions: {
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
           charts: ['recharts'],
         },
+        // Add hash to filenames for cache busting
+        entryFileNames: `assets/[name]-[hash].js`,
+        chunkFileNames: `assets/[name]-[hash].js`,
+        assetFileNames: `assets/[name]-[hash].[ext]`,
       },
     },
   },

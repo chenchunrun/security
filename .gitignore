@@ -55,3 +55,4 @@ htmlcov/
 *.tmp
 *.bak
 .claude/settings.local.json
+services/web_dashboard/node_modules/

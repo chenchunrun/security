@@ -1,145 +1,238 @@
 # 🔒 Security Alert Triage System
 
-基于LangChain的智能安全告警研判系统原型
+> AI-Powered Security Alert Analysis and Triage Platform
 
-**✨ 现已支持通义千问(Qwen)、OpenAI等多种LLM！**
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-green.svg)](https://www.python.org/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
+[![LLM](https://img.shields.io/badge/LLM-OpenAI%20Compatible-orange.svg)](https://platform.openai.com/)
 
-## 🎯 功能特性
+**Security Alert Triage System** is an intelligent security operations platform that uses Large Language Models (LLMs) to automatically analyze, triage, and prioritize security alerts. It combines threat intelligence, contextual analysis, and AI-powered risk assessment to help security teams respond faster and more effectively.
 
-- ✅ 智能告警解析和路由
-- ✅ 多维度风险评估（基于CVSS）
-- ✅ 威胁情报关联查询
-- ✅ 上下文信息收集
-- ✅ 自动生成处置建议
-- ✅ 人工审核判断
-- ✅ 批量告警处理
-- ✅ 完整的日志记录
+---
 
-## 📁 项目结构
+## ✨ Key Features
 
-```
-security_triage/
-├── src/
-│   ├── agents/           # Agent实现
-│   │   └── triage_agent.py
-│   ├── tools/            # 工具函数
-│   │   ├── context_tools.py
-│   │   ├── threat_intel_tools.py
-│   │   └── risk_assessment_tools.py
-│   ├── models/           # 数据模型
-│   │   └── alert.py
-│   └── utils/            # 工具类
-│       ├── config.py
-│       └── logger.py
-├── config/               # 配置文件
-│   └── config.yaml
-├── data/                 # 数据文件
-│   └── sample_alerts.json
-├── logs/                 # 日志目录
-├── tests/                # 测试文件
-├── requirements.txt      # 依赖列表
-├── .env.example         # 环境变量示例
-└── main.py              # 主入口
+### 🤖 AI-Powered Analysis
+- **Intelligent Triage**: Uses LLMs to understand alert context and assess risk
+- **Multi-LLM Support**: Works with Qwen, OpenAI, DeepSeek, and any OpenAI-compatible API
+- **Natural Language Reports**: Generates human-readable analysis and recommendations
 
-```
+### 🔍 Threat Intelligence Integration
+- **IOC Enrichment**: Automatically queries threat intelligence databases
+- **Historical Matching**: Vector similarity search to find related past incidents
+- **Risk Scoring**: Weighted risk assessment based on multiple factors
 
-## 🚀 快速开始
+### 🏗️ Microservices Architecture
+- **15 Production Services**: Scalable, distributed system design
+- **Async Message-Driven**: RabbitMQ for reliable message processing
+- **Multi-level Caching**: Redis for optimal performance
 
-### 支持的LLM提供商
+### 📊 Real-time Dashboard
+- **React Web UI**: Modern, responsive interface
+- **Live Metrics**: Real-time alert processing statistics
+- **Workflow Management**: Track remediation actions
 
-- ✅ **通义千问 Qwen** - 推荐国内用户（性价比高）
-- ✅ **OpenAI** - GPT-4, GPT-3.5
-- ✅ **DeepSeek** - 高性价比
-- ✅ **智谱AI GLM** - 国产模型
-- ✅ **月之暗面 Kimi** - 长上下文
-- ✅ 任何OpenAI兼容的API
+---
 
-详细配置指南: **[LLM_API_CONFIG.md](LLM_API_CONFIG.md)**
+## 🚀 Quick Start
 
-### 1. 安装依赖
+### Prerequisites
+
+- **Docker** 20.10+ and **Docker Compose** 2.0+
+- **LLM API Key** (Qwen, OpenAI, or compatible)
+
+### One-Command Startup
 
 ```bash
-cd /Users/newmba/Downloads/CCWorker/security_triage
+# Clone the repository
+git clone https://github.com/yourname/security-triage.git
+cd security-triage
+
+# Configure your LLM API key
+cp .env.docker.example .env
+# Edit .env and set LLM_API_KEY
+
+# Start the system (development mode - 8 core services)
+./start-dev.sh
+
+# Or start full production mode (all 15 services)
+./start-dev.sh prod
+```
+
+That's it! The system will:
+1. Pull and build Docker images
+2. Start all required services
+3. Run health checks
+4. Display access URLs
+
+**Access the Dashboard**: http://localhost:3000
+
+---
+
+## 📁 Project Structure
+
+```
+security-triage/
+├── services/                    # Microservices (15 services)
+│   ├── alert_ingestor/         # Alert ingestion (REST, webhook, syslog)
+│   ├── alert_normalizer/       # Alert standardization
+│   ├── context_collector/      # Context enrichment
+│   ├── threat_intel_aggregator/# Threat intelligence aggregation
+│   ├── ai_triage_agent/        # AI analysis engine
+│   ├── llm_router/             # Intelligent LLM routing
+│   ├── similarity_search/      # Vector similarity search
+│   ├── workflow_engine/        # Temporal workflow orchestration
+│   ├── automation_orchestrator/# SOAR playbook execution
+│   ├── api_gateway/            # Kong API Gateway
+│   ├── notification_service/   # Multi-channel notifications
+│   ├── user_management/        # RBAC and authentication
+│   ├── reporting_service/      # Report generation
+│   ├── data_analytics/         # Analytics processing
+│   └── web_dashboard/          # React frontend
+├── shared/                      # Shared libraries
+│   ├── models/                 # Pydantic data models
+│   ├── database/               # Database utilities
+│   ├── messaging/              # RabbitMQ utilities
+│   └── auth/                   # JWT authentication
+├── docker-compose.yml           # Full production setup (15 services)
+├── docker-compose.dev.yml       # Development setup (8 core services)
+├── start-dev.sh                 # Quick start script
+├── src/                         # Prototype/CLI version
+├── docs/                        # Architecture documentation
+├── tests/                       # Test suite
+└── standards/                   # Development standards
+```
+
+---
+
+## 🎯 Usage Examples
+
+### Example 1: Submit an Alert via API
+
+```bash
+curl -X POST http://localhost:9001/api/v1/alerts \
+  -H "Content-Type: application/json" \
+  -d '{
+    "alert_id": "ALT-001",
+    "timestamp": "2025-01-04T12:00:00Z",
+    "alert_type": "malware",
+    "severity": "high",
+    "source_ip": "45.33.32.156",
+    "target_ip": "10.0.0.50",
+    "file_hash": "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
+    "description": "Suspicious file execution detected"
+  }'
+```
+
+### Example 2: Using the CLI (Prototype)
+
+```bash
+# Install dependencies
 pip install -r requirements.txt
-```
 
-### 2. 配置LLM API
-
-**快速配置（通义千问 - 推荐）:**
-
-```bash
-# 复制环境变量模板
+# Configure LLM API
 cp .env.example .env
+# Edit .env with your LLM_API_KEY
 
-# 编辑.env文件
-nano .env  # 或使用任何文本编辑器
+# Process sample alerts
+python main.py --sample
+
+# Interactive mode
+python main.py --interactive
+
+# Batch processing
+python main.py --file data/sample_alerts.json
 ```
 
-添加以下内容：
+---
+
+## 🔧 Configuration
+
+### LLM API Setup
+
+The system supports any OpenAI-compatible API:
+
+#### Option 1: Qwen (通义千问) - Recommended for China
 ```bash
-# 通义千问配置
-LLM_API_KEY=sk-your-qwen-api-key-here
+LLM_API_KEY=sk-your-qwen-api-key
 LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 ```
+Get your key: https://bailian.console.aliyun.com/
 
-**获取通义千问API密钥**: https://bailian.console.aliyun.com/
-
-**或使用OpenAI:**
+#### Option 2: OpenAI
 ```bash
-LLM_API_KEY=sk-your-openai-key
+LLM_API_KEY=sk-your-openai-api-key
 LLM_BASE_URL=
 ```
 
-详细配置说明: 查看 **[LLM_API_CONFIG.md](LLM_API_CONFIG.md)**
-
-### 3. 运行示例
-
+#### Option 3: DeepSeek
 ```bash
-# 处理示例告警
-python main.py --sample
-
-# 交互式模式
-python main.py --interactive
-
-# 从文件处理告警
-python main.py --file data/sample_alerts.json
-
-# 处理单个告警
-python main.py --alert '{"alert_id":"ALT-001","timestamp":"2025-01-04T12:00:00Z","alert_type":"malware","source_ip":"45.33.32.156","target_ip":"10.0.0.50","severity":"high","description":"Test alert"}'
+LLM_API_KEY=sk-your-deepseek-api-key
+LLM_BASE_URL=https://api.deepseek.com/v1
 ```
 
-## 📊 使用示例
+See [LLM_API_CONFIG.md](docs/LLM_API_CONFIG.md) for detailed configuration.
 
-### 示例1：恶意软件告警
+---
 
-```python
-{
-  "alert_id": "ALT-2025-001",
-  "timestamp": "2025-01-04T12:00:00Z",
-  "alert_type": "malware",
-  "source_ip": "45.33.32.156",
-  "target_ip": "10.0.0.50",
-  "severity": "high",
-  "description": "Detected suspicious file execution",
-  "file_hash": "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"
-}
+## 🏛️ Architecture
+
+### System Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         API Gateway (Kong)                          │
+└───────────────────────────────┬─────────────────────────────────────┘
+                                │
+                ┌───────────────┴───────────────┐
+                │                               │
+        ┌───────▼────────┐            ┌────────▼────────┐
+        │ Alert Ingestor │            │  Web Dashboard  │
+        └───────┬────────┘            └─────────────────┘
+                │
+        ┌───────▼────────┐
+        │   Normalizer   │
+        └───────┬────────┘
+                │
+        ┌───────▼─────────────────────┐
+        │     Context Collector        │
+        └───────┬─────────────────────┘
+                │
+        ┌───────▼─────────────────────┐
+        │ Threat Intel Aggregator      │
+        └───────┬─────────────────────┘
+                │
+        ┌───────▼─────────────────────┐
+        │      AI Triage Agent         │◄─────────┐
+        └───────┬─────────────────────┘          │
+                │                                │
+        ┌───────▼─────────────────────┐   ┌──────▼──────┐
+        │   Similarity Search          │───│  LLM Router  │
+        └───────┬─────────────────────┘   └─────────────┘
+                │
+        ┌───────▼─────────────────────┐
+        │     Workflow Engine          │
+        └───────┬─────────────────────┘
+                │
+        ┌───────▼─────────────────────┐
+        │ Automation Orchestrator      │
+        └───────────────────────────────┘
 ```
 
-### 示例2：暴力破解告警
+### Technology Stack
 
-```python
-{
-  "alert_id": "ALT-2025-002",
-  "timestamp": "2025-01-04T11:30:00Z",
-  "alert_type": "brute_force",
-  "source_ip": "192.168.1.200",
-  "target_ip": "10.0.0.10",
-  "severity": "medium",
-  "description": "Multiple failed login attempts detected"
-}
-```
+| Layer | Technology |
+|-------|-----------|
+| **Backend** | Python 3.11+, FastAPI, LangChain, Pydantic v2 |
+| **Data** | PostgreSQL 15, Redis Cluster, RabbitMQ 3.12, ChromaDB |
+| **AI/ML** | OpenAI-compatible APIs (Qwen, DeepSeek, etc.) |
+| **Frontend** | React 18, TypeScript, Tailwind CSS |
+| **DevOps** | Docker, Kubernetes (optional), Prometheus, Grafana |
 
-## 🎨 输出示例
+---
+
+## 📊 Output Example
 
 ```
 ================================================================================
@@ -164,9 +257,9 @@ File Hash:       5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d
    Risk Level:      HIGH
    Confidence:      75.0%
    Key Factors:
-      • 告警严重级别: high
-      • 资产重要性: high
-      • 威胁情报评分: 7.0/10
+      • Severity: high
+      • Asset Criticality: high
+      • Threat Intel Score: 7.0/10
 
 🔍 THREAT INTELLIGENCE:
    • IOC: 5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8
@@ -174,18 +267,10 @@ File Hash:       5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d
      Threat Level: high
      ⚠️  MALICIOUS
 
-🌐 CONTEXT INFORMATION:
-   Network:
-      Source IP Internal: False
-   Asset:
-      Type: workstation
-      Criticality: high
-
 🛠️  REMEDIATION ACTIONS:
-   1. [IMMEDIATE] 立即隔离受影响主机 (🤖 AUTO)
-   2. [IMMEDIATE] 阻断恶意IP地址 (🤖 AUTO)
-   3. [IMMEDIATE] 禁用受损账户 (🤖 AUTO)
-   4. [HIGH] 启动应急响应流程 (👤 MANUAL)
+   1. [IMMEDIATE] Isolate affected host (🤖 AUTO)
+   2. [IMMEDIATE] Block malicious IP (🤖 AUTO)
+   3. [HIGH] Initiate incident response (👤 MANUAL)
       Owner: Security Team
 
 📋 ADDITIONAL INFO:
@@ -198,83 +283,111 @@ File Hash:       5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d
 ================================================================================
 ```
 
-### 3. 测试API连接（推荐）
+---
+
+## 🧪 Testing
 
 ```bash
-python3 test_api.py
+# Run all tests
+pytest tests/ -v
+
+# Run specific test types
+pytest tests/ -m unit          # Unit tests only
+pytest tests/ -m integration   # Integration tests
+pytest tests/ -m e2e           # End-to-end tests
+
+# Run with coverage
+pytest tests/ --cov=services --cov-report=html
+
+# Skip tests requiring external services
+pytest tests/ -m "not requires_network"
 ```
 
-这会验证你的API配置是否正确。
+---
 
-### 4. 运行示例
+## 📈 Development Roadmap
 
-### config.yaml
+### ✅ Phase 1: MVP (Current)
+- [x] Prototype system (CLI-based)
+- [x] Microservices architecture (15 services)
+- [x] Web dashboard
+- [x] Docker deployment
 
-```yaml
-# 风险评分阈值
-risk_scoring:
-  thresholds:
-    critical: 90
-    high: 70
-    medium: 40
-    low: 20
+### 🔄 Phase 2: Enhanced Features (In Progress)
+- [ ] Real threat intelligence API integration
+- [ ] Multi-tenancy support
+- [ ] Advanced analytics with MITRE ATT&CK
+- [ ] Performance optimization
 
-# 权重配置
-  weights:
-    severity: 0.3
-    threat_intel: 0.3
-    asset_criticality: 0.2
-    exploitability: 0.2
-```
+### 📋 Phase 3: Production Ready
+- [ ] Kubernetes deployment manifests
+- [ ] High availability configuration
+- [ ] Security hardening
+- [ ] Comprehensive monitoring
 
-## 📈 扩展建议
+---
 
-### 生产环境增强
+## 🤝 Contributing
 
-1. **真实威胁情报集成**
-   - VirusTotal API
-   - Abuse.ch
-   - MISP
-   - AlienVault OTX
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
-2. **向量数据库**
-   - Chroma用于历史告警存储
-   - 语义搜索相似事件
-
-3. **消息队列**
-   - RabbitMQ/Kafka处理告警流
-   - 异步批量处理
-
-4. **监控告警**
-   - Prometheus指标导出
-   - Grafana仪表板
-
-5. **API接口**
-   - FastAPI REST API
-   - Webhook通知
-
-## 🧪 测试
+### Development Setup
 
 ```bash
-# 运行测试（待实现）
-pytest tests/
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# 运行示例
-python main.py --sample
+# Install dependencies
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+
+# Run tests
+pytest tests/ -v
+
+# Code formatting
+black services/
+isort services/
+
+# Type checking
+mypy services/
 ```
 
-## 📝 注意事项
+---
 
-1. **API密钥**: 需要配置OpenAI API密钥
-2. **Mock数据**: 当前使用模拟数据，生产环境需集成真实数据源
-3. **性能**: 优化向量检索和LLM调用
-4. **安全**: 生产环境需要添加认证和授权
+## 📖 Documentation
 
-## 🤝 贡献
+- **[Architecture Overview](docs/01_architecture_overview.md)** - System design and architecture
+- **[API Documentation](docs/05_api_design.md)** - REST API specifications
+- **[Development Standards](standards/README.md)** - Coding standards and best practices
+- **[Deployment Guide](DEPLOYMENT.md)** - Production deployment instructions
+- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
 
-这是一个原型系统，欢迎改进和扩展！
+---
 
-## 📄 许可
+## 📄 License
 
-Apache License 2.0 - 详见项目根目录 LICENSE 文件
-# Last build test
+Apache License 2.0 - see [LICENSE](LICENSE) for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- **LangChain** - AI agent framework
+- **FastAPI** - Modern Python web framework
+- **Qwen (通义千问)** - LLM provider
+- **OpenAI** - GPT models
+
+---
+
+## 📞 Support
+
+- **Issues**: [GitHub Issues](https://github.com/yourname/security-triage/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/yourname/security-triage/discussions)
+- **Email**: your-email@example.com
+
+---
+
+<p align="center">
+  <b>⭐ Star this repo if it helped you!</b>
+</p>

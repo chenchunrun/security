@@ -22,7 +22,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from shared.database import DatabaseManager, get_database_manager
+from shared.database import DatabaseManager, close_database, get_database_manager, init_database
 from shared.database.repositories.base import BaseRepository
 from shared.messaging import MessageConsumer
 from shared.models import (
@@ -89,8 +89,14 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Data Analytics service...")
 
     # Initialize database
+    import os
+    await init_database(
+        database_url=config.database_url,
+        pool_size=int(os.getenv("DB_POOL_SIZE", "10")),
+        max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "20")),
+        echo=config.debug,
+    )
     db_manager = get_database_manager()
-    await db_manager.initialize()
 
     # Initialize message consumer (optional, for real-time metrics)
     try:

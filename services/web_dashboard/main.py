@@ -1955,12 +1955,13 @@ async def get_configs(category: str = None):
                         "description": "Maximum number of parallel automation workflows"
                     },
 
-                    # LLM category - NEW Zhipu AI Configuration
+                    # LLM category - Multiple LLM Provider Configuration
                     "llm_provider": {
                         "value": "zhipu",
                         "category": "llm",
                         "description": "Primary LLM provider for alert analysis"
                     },
+                    # Zhipu AI (智谱AI)
                     "zhipu_api_key": {
                         "value": "",
                         "category": "llm",
@@ -1976,6 +1977,55 @@ async def get_configs(category: str = None):
                         "category": "llm",
                         "description": "Zhipu AI API base URL"
                     },
+                    # DeepSeek
+                    "deepseek_api_key": {
+                        "value": "",
+                        "category": "llm",
+                        "description": "DeepSeek API key (get from https://platform.deepseek.com/)"
+                    },
+                    "deepseek_model": {
+                        "value": "deepseek-v3",
+                        "category": "llm",
+                        "description": "DeepSeek model to use"
+                    },
+                    "deepseek_base_url": {
+                        "value": "https://api.deepseek.com/v1",
+                        "category": "llm",
+                        "description": "DeepSeek API base URL"
+                    },
+                    # Qwen (通义千问)
+                    "qwen_api_key": {
+                        "value": "",
+                        "category": "llm",
+                        "description": "Alibaba Qwen API key (get from https://bailian.console.aliyun.com/)"
+                    },
+                    "qwen_model": {
+                        "value": "qwen3-max",
+                        "category": "llm",
+                        "description": "Qwen model to use"
+                    },
+                    "qwen_base_url": {
+                        "value": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+                        "category": "llm",
+                        "description": "Qwen API base URL"
+                    },
+                    # OpenAI
+                    "openai_api_key": {
+                        "value": "",
+                        "category": "llm",
+                        "description": "OpenAI API key (get from https://platform.openai.com/api-keys)"
+                    },
+                    "openai_model": {
+                        "value": "gpt-4-turbo",
+                        "category": "llm",
+                        "description": "OpenAI model to use"
+                    },
+                    "openai_base_url": {
+                        "value": "https://api.openai.com/v1",
+                        "category": "llm",
+                        "description": "OpenAI API base URL"
+                    },
+                    # Common LLM Settings
                     "temperature": {
                         "value": 0.0,
                         "category": "llm",

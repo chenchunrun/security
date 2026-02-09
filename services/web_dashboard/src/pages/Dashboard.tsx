@@ -2,9 +2,10 @@
  * Dashboard - Main Analytics Page
  */
 
-import React from 'react'
-import { useQuery } from '@tanstack/react-query'
+import React, { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { useWebSocket } from '@/hooks/useWebSocket'
 import {
   TrendingUp,
   TrendingDown,
@@ -12,7 +13,36 @@ import {
   Clock,
   CheckCircle,
   Activity,
+  BarChart3,
+  PieChart,
+  RefreshCw,
+  Wifi,
+  WifiOff,
 } from 'lucide-react'
+import {
+  PieChart as RechartsPieChart,
+  Cell,
+  Pie,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+} from 'recharts'
+
+// Chart colors
+const SEVERITY_COLORS = {
+  critical: '#ef4444',
+  high: '#f59e0b',
+  medium: '#3b82f6',
+  low: '#22c55e',
+  info: '#6b7280',
+}
+
+const STATUS_COLORS = ['#9ca3af', '#3b82f6', '#8b5cf6', '#f59e0b', '#22c55e', '#9ca3af', '#ef4444']
 
 const MetricCard: React.FC<{
   title: string
@@ -59,8 +89,11 @@ const MetricCard: React.FC<{
 }
 
 export const Dashboard: React.FC = () => {
+  const [refreshing, setRefreshing] = useState(false)
+  const queryClient = useQueryClient()
+
   // Fetch metrics
-  const { data: metrics, isLoading: metricsLoading } = useQuery({
+  const { data: metrics, isLoading: metricsLoading, refetch: refetchMetrics } = useQuery({
     queryKey: ['metrics'],
     queryFn: () => api.analytics.getMetrics(),
   })
@@ -70,6 +103,54 @@ export const Dashboard: React.FC = () => {
     queryKey: ['top-alerts'],
     queryFn: () => api.analytics.getTopAlerts(5),
   })
+
+  // WebSocket connection for real-time updates
+  const { isConnected } = useWebSocket({
+    onMessage: (message) => {
+      if (message.type === 'metrics_update' && message.data) {
+        // Update metrics cache with new data
+        queryClient.setQueryData(['metrics'], message.data)
+      } else if (message.type === 'workflows_update' && message.data) {
+        // Invalidate top alerts query to refresh
+        queryClient.invalidateQueries({ queryKey: ['top-alerts'] })
+      }
+    },
+    onConnect: () => {
+      // WebSocket connected - debug only
+    },
+    onDisconnect: () => {
+      // WebSocket disconnected - debug only
+    },
+  })
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await refetchMetrics()
+    setRefreshing(false)
+  }
+
+  // Prepare chart data
+  const severityData = metrics?.by_severity
+    ? Object.entries(metrics.by_severity).map(([name, value]) => ({
+        name,
+        value: value as number,
+        fill: SEVERITY_COLORS[name as keyof typeof SEVERITY_COLORS],
+      }))
+    : []
+
+  const statusData = metrics?.by_status
+    ? Object.entries(metrics.by_status).map(([name, value], index) => ({
+        name: name.replace('_', ' '),
+        value: value as number,
+        fill: STATUS_COLORS[index % STATUS_COLORS.length],
+      }))
+    : []
+
+  const typeData = topAlerts?.map((alert) => ({
+    name: alert.alert_type.replace('_', ' '),
+    value: alert.count,
+    percentage: alert.percentage,
+  })) || []
 
   if (metricsLoading || topAlertsLoading) {
     return (
@@ -87,9 +168,35 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-sm text-gray-600 mt-1">Overview of security alerts and system performance</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-sm text-gray-600 mt-1">Overview of security alerts and system performance</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {/* Connection Status */}
+          <div className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 rounded-lg">
+            {isConnected ? (
+              <>
+                <Wifi className="w-4 h-4 text-green-600" />
+                <span className="text-sm font-medium text-gray-700">Live</span>
+              </>
+            ) : (
+              <>
+                <WifiOff className="w-4 h-4 text-gray-400" />
+                <span className="text-sm font-medium text-gray-500">Offline</span>
+              </>
+            )}
+          </div>
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Metrics Grid */}
@@ -125,73 +232,143 @@ export const Dashboard: React.FC = () => {
 
       {/* Charts and Tables */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Alerts by Severity */}
+        {/* Alerts by Severity - Pie Chart */}
         <div className="card">
           <div className="card-header">
-            <h2 className="text-lg font-semibold text-gray-900">Alerts by Severity</h2>
+            <div className="flex items-center gap-2">
+              <PieChart className="w-5 h-5 text-gray-600" />
+              <h2 className="text-lg font-semibold text-gray-900">Alerts by Severity</h2>
+            </div>
           </div>
           <div className="card-body">
-            <div className="space-y-4">
-              {metrics?.by_severity && Object.entries(metrics.by_severity).map(([severity, count]) => (
-                <div key={severity} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-3 h-3 rounded-full ${
-                        severity === 'critical'
-                          ? 'bg-danger-500'
-                          : severity === 'high'
-                          ? 'bg-warning-500'
-                          : severity === 'medium'
-                          ? 'bg-primary-500'
-                          : 'bg-success-500'
-                      }`}
-                    />
-                    <span className="text-sm font-medium text-gray-900 capitalize">{severity}</span>
-                  </div>
-                  <span className="text-sm text-gray-600">{count as number}</span>
-                </div>
-              ))}
-            </div>
+            <ResponsiveContainer width="100%" height={300}>
+              <RechartsPieChart>
+                <Pie
+                  data={severityData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {severityData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </RechartsPieChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Top Alert Types */}
+        {/* Top Alert Types - Bar Chart */}
         <div className="card">
           <div className="card-header">
-            <h2 className="text-lg font-semibold text-gray-900">Top Alert Types</h2>
+            <div className="flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-gray-600" />
+              <h2 className="text-lg font-semibold text-gray-900">Top Alert Types</h2>
+            </div>
           </div>
           <div className="card-body">
-            <div className="space-y-4">
-              {topAlerts?.map((alert) => (
-                <div key={alert.alert_type} className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-900 capitalize">
-                    {alert.alert_type.replace('_', ' ')}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <div className="w-24 bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-primary-600 h-2 rounded-full"
-                        style={{ width: `${alert.percentage}%` }}
-                      />
-                    </div>
-                    <span className="text-sm text-gray-600 w-12 text-right">{alert.count}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={typeData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="name"
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
+                  fontSize={12}
+                />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>
 
-      {/* Recent Activity */}
-      <div className="card">
-        <div className="card-header">
-          <h2 className="text-lg font-semibold text-gray-900">System Status</h2>
+      {/* Second Row of Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Alerts by Status - Pie Chart */}
+        <div className="card">
+          <div className="card-header">
+            <div className="flex items-center gap-2">
+              <Activity className="w-5 h-5 text-gray-600" />
+              <h2 className="text-lg font-semibold text-gray-900">Alerts by Status</h2>
+            </div>
+          </div>
+          <div className="card-body">
+            <ResponsiveContainer width="100%" height={300}>
+              <RechartsPieChart>
+                <Pie
+                  data={statusData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {statusData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </RechartsPieChart>
+            </ResponsiveContainer>
+          </div>
         </div>
-        <div className="card-body">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <div className="w-2 h-2 bg-success-500 rounded-full animate-pulse" />
-            All systems operational
+
+        {/* System Status */}
+        <div className="card">
+          <div className="card-header">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-5 h-5 text-gray-600" />
+              <h2 className="text-lg font-semibold text-gray-900">System Status</h2>
+            </div>
+          </div>
+          <div className="card-body">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 bg-success-500 rounded-full animate-pulse" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">API Server</p>
+                    <p className="text-xs text-gray-600">Operational</p>
+                  </div>
+                </div>
+                <span className="text-sm font-medium text-success-700">Healthy</span>
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 bg-success-500 rounded-full animate-pulse" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Database</p>
+                    <p className="text-xs text-gray-600">PostgreSQL</p>
+                  </div>
+                </div>
+                <span className="text-sm font-medium text-success-700">Connected</span>
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 bg-success-500 rounded-full animate-pulse" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Message Queue</p>
+                    <p className="text-xs text-gray-600">RabbitMQ</p>
+                  </div>
+                </div>
+                <span className="text-sm font-medium text-success-700">Running</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>

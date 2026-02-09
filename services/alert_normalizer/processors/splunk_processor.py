@@ -111,8 +111,8 @@ class SplunkProcessor:
             protocol = self._extract_field(raw_alert, ["protocol", "transport"])
 
             # Extract entity references
-            asset_id = self._extract_field(raw_alert, ["asset", "host", "hostname", "dest_host"])
-            user_id = self._extract_field(raw_alert, ["user", "username", "account", "dest_user"])
+            asset_id = self._extract_field(raw_alert, ["asset_id", "asset", "host", "hostname", "dest_host"])
+            user_id = self._extract_field(raw_alert, ["user_id", "user", "username", "account", "dest_user"])
 
             # Extract threat-specific fields
             file_hash = self._extract_file_hash(raw_alert)

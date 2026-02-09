@@ -37,6 +37,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from shared.database import DatabaseManager, close_database, get_database_manager, init_database
+from shared.data_loader import get_data_loader
 from shared.messaging import MessageConsumer, MessagePublisher
 from shared.models import SecurityAlert
 from shared.utils import Config, get_logger
@@ -278,6 +279,143 @@ class AbuseCHSource(ThreatIntelSource):
         }
 
 
+class InternalIOCSource(ThreatIntelSource):
+    """Internal IOC database from JSON file."""
+
+    def __init__(self):
+        super().__init__("Internal IOC")
+        self.enabled = True
+        self.data_loader = get_data_loader()
+
+    async def query_ip(self, ip: str) -> Optional[Dict[str, Any]]:
+        """Query internal IOC database for IP."""
+        if not self.enabled:
+            return None
+
+        try:
+            is_malicious, ioc_data = self.data_loader.is_malicious_ioc(ip)
+
+            if is_malicious and ioc_data.get("ioc_type") == "ip":
+                return {
+                    "source": "Internal IOC",
+                    "detected": True,
+                    "threat_type": ioc_data.get("threat_type"),
+                    "confidence": ioc_data.get("confidence"),
+                    "description": ioc_data.get("description"),
+                    "tags": ioc_data.get("tags", []),
+                    "first_seen": ioc_data.get("first_seen"),
+                    "last_seen": ioc_data.get("last_seen"),
+                }
+
+            return {"source": "Internal IOC", "detected": False}
+
+        except Exception as e:
+            logger.error(f"Internal IOC query failed for IP {ip}: {e}")
+            return None
+
+    async def query_hash(self, file_hash: str) -> Optional[Dict[str, Any]]:
+        """Query internal IOC database for file hash."""
+        if not self.enabled:
+            return None
+
+        try:
+            is_malicious, ioc_data = self.data_loader.is_malicious_ioc(file_hash)
+
+            if is_malicious and ioc_data.get("ioc_type") == "hash":
+                return {
+                    "source": "Internal IOC",
+                    "detected": True,
+                    "threat_type": ioc_data.get("threat_type"),
+                    "confidence": ioc_data.get("confidence"),
+                    "description": ioc_data.get("description"),
+                    "tags": ioc_data.get("tags", []),
+                    "first_seen": ioc_data.get("first_seen"),
+                    "last_seen": ioc_data.get("last_seen"),
+                }
+
+            return {"source": "Internal IOC", "detected": False}
+
+        except Exception as e:
+            logger.error(f"Internal IOC query failed for hash {file_hash}: {e}")
+            return None
+
+    async def query_url(self, url: str) -> Optional[Dict[str, Any]]:
+        """Query internal IOC database for URL/domain."""
+        if not self.enabled:
+            return None
+
+        try:
+            # Try exact URL match first
+            is_malicious, ioc_data = self.data_loader.is_malicious_ioc(url)
+
+            if is_malicious and ioc_data.get("ioc_type") in ["url", "domain"]:
+                return {
+                    "source": "Internal IOC",
+                    "detected": True,
+                    "threat_type": ioc_data.get("threat_type"),
+                    "confidence": ioc_data.get("confidence"),
+                    "description": ioc_data.get("description"),
+                    "tags": ioc_data.get("tags", []),
+                    "first_seen": ioc_data.get("first_seen"),
+                    "last_seen": ioc_data.get("last_seen"),
+                }
+
+            # Try domain extraction
+            from urllib.parse import urlparse
+            try:
+                parsed = urlparse(url)
+                domain = parsed.netloc
+
+                if domain:
+                    is_malicious, ioc_data = self.data_loader.is_malicious_ioc(domain)
+
+                    if is_malicious and ioc_data.get("ioc_type") == "domain":
+                        return {
+                            "source": "Internal IOC",
+                            "detected": True,
+                            "threat_type": ioc_data.get("threat_type"),
+                            "confidence": ioc_data.get("confidence"),
+                            "description": ioc_data.get("description"),
+                            "tags": ioc_data.get("tags", []),
+                            "first_seen": ioc_data.get("first_seen"),
+                            "last_seen": ioc_data.get("last_seen"),
+                        }
+            except Exception:
+                pass
+
+            return {"source": "Internal IOC", "detected": False}
+
+        except Exception as e:
+            logger.error(f"Internal IOC query failed for URL {url}: {e}")
+            return None
+
+    async def query_email(self, email: str) -> Optional[Dict[str, Any]]:
+        """Query internal IOC database for email address."""
+        if not self.enabled:
+            return None
+
+        try:
+            is_malicious, ioc_data = self.data_loader.is_malicious_ioc(email)
+
+            if is_malicious and ioc_data.get("ioc_type") == "email":
+                return {
+                    "source": "Internal IOC",
+                    "detected": True,
+                    "threat_type": ioc_data.get("threat_type"),
+                    "confidence": ioc_data.get("confidence"),
+                    "description": ioc_data.get("description"),
+                    "tags": ioc_data.get("tags", []),
+                    "first_seen": ioc_data.get("first_seen"),
+                    "last_seen": ioc_data.get("last_seen"),
+                }
+
+            return {"source": "Internal IOC", "detected": False}
+
+        except Exception as e:
+            logger.error(f"Internal IOC query failed for email {email}: {e}")
+            return None
+
+
 class CustomThreatFeed(ThreatIntelSource):
     """Custom threat intelligence feed (internal blocklist)."""
 
@@ -335,6 +473,9 @@ def init_threat_sources():
     # VirusTotal (requires API key)
     vt_api_key = os.getenv("VIRUSTOTAL_API_KEY", "your_vt_key")
     threat_sources.append(VirusTotalSource(vt_api_key))
+
+    # Internal IOC database (JSON file)
+    threat_sources.append(InternalIOCSource())
 
     # Abuse.ch (free public API)
     threat_sources.append(AbuseCHSource())

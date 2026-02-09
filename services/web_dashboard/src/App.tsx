@@ -10,6 +10,11 @@ import { Layout } from '@/components/Layout'
 import { Login } from '@/pages/Login'
 import { Dashboard } from '@/pages/Dashboard'
 import { Alerts } from '@/pages/Alerts'
+import { AlertDetail } from '@/pages/AlertDetail'
+import { Reports } from '@/pages/Reports'
+import { Settings } from '@/pages/Settings'
+import { Automation } from '@/pages/Automation'
+import { Notifications } from '@/pages/Notifications'
 
 // Protected Route Wrapper
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -73,9 +78,11 @@ function App() {
       >
         <Route index element={<Dashboard />} />
         <Route path="alerts" element={<Alerts />} />
-        <Route path="alerts/:id" element={<div>Alert Details - TODO</div>} />
-        <Route path="reports" element={<div>Reports - TODO</div>} />
-        <Route path="settings" element={<div>Settings - TODO</div>} />
+        <Route path="alerts/:id" element={<AlertDetail />} />
+        <Route path="reports" element={<Reports />} />
+        <Route path="automation" element={<Automation />} />
+        <Route path="notifications" element={<Notifications />} />
+        <Route path="settings" element={<Settings />} />
       </Route>
 
       {/* Catch all - redirect to dashboard */}

@@ -34,6 +34,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from shared.database import DatabaseManager, close_database, get_database_manager, init_database
+from shared.data_loader import get_data_loader
 from shared.messaging import MessageConsumer, MessagePublisher
 from shared.models import SecurityAlert
 from shared.utils import Config, get_logger
@@ -200,7 +201,7 @@ def get_subnet(ip: str) -> Optional[str]:
 
 async def get_asset_context(asset_id: str) -> Dict[str, Any]:
     """
-    Collect asset context from CMDB.
+    Collect asset context from JSON data store.
 
     Args:
         asset_id: Asset identifier
@@ -217,26 +218,36 @@ async def get_asset_context(asset_id: str) -> Dict[str, Any]:
             return data
 
     try:
-        # TODO: Implement actual CMDB lookup
-        # Examples:
-        # - ServiceNow CMDB API
-        # - BMC Atrium CMDB
-        # - iTop CMDB
-        # - Custom asset database
+        # Load asset data from JSON file
+        data_loader = get_data_loader()
+        asset = data_loader.get_asset_by_id(asset_id)
 
-        context = {
-            "asset_id": asset_id,
-            "asset_name": f"ASSET-{asset_id}",
-            "asset_type": "server",  # server, workstation, network_device, etc.
-            "os_type": "Linux",  # Linux, Windows, macOS
-            "os_version": "Ubuntu 22.04",
-            "criticality": "medium",  # critical, high, medium, low
-            "owner": "IT Department",
-            "location": "Data Center 1",
-            "network_zone": "DMZ",
-            "business_unit": "Engineering",
-            "environment": "production",  # production, staging, development
-        }
+        if asset:
+            context = {
+                "asset_id": asset.get("asset_id"),
+                "asset_name": asset.get("asset_name"),
+                "asset_type": asset.get("asset_type"),
+                "ip_address": asset.get("ip_address"),
+                "mac_address": asset.get("mac_address"),
+                "os_name": asset.get("os_name"),
+                "os_version": asset.get("os_version"),
+                "criticality": asset.get("criticality"),
+                "owner": asset.get("owner"),
+                "location": asset.get("location"),
+                "business_unit": asset.get("business_unit"),
+                "environment": asset.get("environment"),
+                "vulnerabilities": asset.get("vulnerabilities", {}),
+                "last_scan": asset.get("last_scan"),
+            }
+        else:
+            # Asset not found, return minimal context
+            logger.warning(f"Asset not found: {asset_id}")
+            context = {
+                "asset_id": asset_id,
+                "asset_name": asset_id,
+                "criticality": "unknown",
+                "error": "Asset not found in database",
+            }
 
         # Cache result
         expiry_time = datetime.utcnow().timestamp() + CACHE_TTL_SECONDS
@@ -262,7 +273,7 @@ async def get_asset_context(asset_id: str) -> Dict[str, Any]:
 
 async def get_user_context(user_id: str) -> Dict[str, Any]:
     """
-    Collect user context from directory service.
+    Collect user context from JSON data store.
 
     Args:
         user_id: User identifier (username, email, or UPN)
@@ -279,28 +290,35 @@ async def get_user_context(user_id: str) -> Dict[str, Any]:
             return data
 
     try:
-        # TODO: Implement actual directory lookup
-        # Examples:
-        # - Active Directory LDAP
-        # - Azure AD Graph API
-        # - Okta API
-        # - LDAP server
+        # Load user data from JSON file
+        data_loader = get_data_loader()
+        user = data_loader.get_user_by_id(user_id)
 
-        context = {
-            "user_id": user_id,
-            "username": user_id,
-            "full_name": "User " + user_id,
-            "email": f"{user_id}@company.com",
-            "department": "Engineering",
-            "title": "Software Engineer",
-            "manager": None,
-            "location": "HQ",
-            "employee_type": "employee",  # employee, contractor, vendor
-            "account_status": "active",  # active, disabled, locked
-            "last_login": datetime.utcnow().isoformat(),
-            "groups": ["developers", "ssh-users"],
-            "privilege_level": "standard",  # admin, elevated, standard, restricted
-        }
+        if user:
+            context = {
+                "user_id": user.get("user_id"),
+                "username": user.get("username"),
+                "email": user.get("email"),
+                "full_name": user.get("full_name"),
+                "phone": user.get("phone"),
+                "department": user.get("department"),
+                "role": user.get("role"),
+                "access_level": user.get("access_level"),
+                "manager": user.get("manager"),
+                "location": user.get("location"),
+                "is_active": user.get("is_active", True),
+                "login_history": user.get("login_history", {}),
+                "behavior_profile": user.get("behavior_profile", {}),
+            }
+        else:
+            # User not found, return minimal context
+            logger.warning(f"User not found: {user_id}")
+            context = {
+                "user_id": user_id,
+                "username": user_id,
+                "access_level": "unknown",
+                "error": "User not found in database",
+            }
 
         # Cache result
         expiry_time = datetime.utcnow().timestamp() + CACHE_TTL_SECONDS
@@ -314,7 +332,7 @@ async def get_user_context(user_id: str) -> Dict[str, Any]:
         return {
             "user_id": user_id,
             "username": user_id,
-            "privilege_level": "unknown",
+            "access_level": "unknown",
             "error": str(e),
         }
 
@@ -340,6 +358,8 @@ async def enrich_alert(alert: SecurityAlert) -> Dict[str, Any]:
         "enrichment_sources": [],
     }
 
+    logger.info(f"Enriching alert {alert.alert_id}: asset_id={alert.asset_id}, user_id={alert.user_id}, source_ip={alert.source_ip}, target_ip={alert.target_ip}")
+
     # Collect network context
     if alert.source_ip:
         try:
@@ -359,19 +379,23 @@ async def enrich_alert(alert: SecurityAlert) -> Dict[str, Any]:
 
     # Collect asset context
     if alert.asset_id:
+        logger.info(f"Collecting asset context for asset_id: {alert.asset_id}")
         try:
             asset_context = await get_asset_context(alert.asset_id)
             enrichment["asset"] = asset_context
             enrichment["enrichment_sources"].append("asset")
+            logger.info(f"✓ Asset context added for {alert.asset_id}")
         except Exception as e:
             logger.error(f"Failed to enrich asset: {e}")
 
     # Collect user context
     if alert.user_id:
+        logger.info(f"Collecting user context for user_id: {alert.user_id}")
         try:
             user_context = await get_user_context(alert.user_id)
             enrichment["user"] = user_context
             enrichment["enrichment_sources"].append("user")
+            logger.info(f"✓ User context added for {alert.user_id}")
         except Exception as e:
             logger.error(f"Failed to enrich user: {e}")
 
@@ -578,37 +602,58 @@ async def consume_alerts():
 
             payload = actual_message.get("payload", actual_message)
 
-            logger.info(f"Processing message {message_id}")
+            # Handle both single alerts (dict) and batch alerts (list)
+            alerts_to_process = []
 
-            # Parse alert
-            alert = SecurityAlert(**payload)
+            if isinstance(payload, list):
+                # Batch alerts
+                logger.info(f"Processing batch message {message_id} with {len(payload)} alerts")
+                alerts_to_process = payload
+            elif isinstance(payload, dict):
+                # Single alert
+                logger.info(f"Processing single alert message {message_id}")
+                alerts_to_process = [payload]
+            else:
+                logger.warning(f"Unexpected payload type: {type(payload)}")
+                return
 
-            # Enrich with context
-            enrichment = await enrich_alert(alert)
+            # Process each alert
+            for alert_data in alerts_to_process:
+                try:
+                    # Parse alert
+                    alert = SecurityAlert(**alert_data)
 
-            # Persist context to database
-            await persist_context_to_db(alert.alert_id, enrichment)
+                    # Enrich with context
+                    enrichment = await enrich_alert(alert)
 
-            # Create enriched message
-            enriched_message = {
-                "message_id": str(uuid.uuid4()),
-                "message_type": "alert.enriched",
-                "correlation_id": alert.alert_id,
-                "original_message_id": message_id,
-                "timestamp": datetime.utcnow().isoformat(),
-                "version": "1.0",
-                "payload": {
-                    "alert": alert.model_dump(),
-                    "enrichment": enrichment,
-                },
-            }
+                    # Persist context to database
+                    await persist_context_to_db(alert.alert_id, enrichment)
 
-            # Publish enriched alert
-            await publisher.publish("alert.enriched", enriched_message)
+                    # Create enriched message
+                    enriched_message = {
+                        "message_id": str(uuid.uuid4()),
+                        "message_type": "alert.enriched",
+                        "correlation_id": alert.alert_id,
+                        "original_message_id": message_id,
+                        "timestamp": datetime.utcnow().isoformat(),
+                        "version": "1.0",
+                        "payload": {
+                            "alert": alert.model_dump(),
+                            "enrichment": enrichment,
+                        },
+                    }
 
-            logger.info(
-                f"Alert enriched successfully (message_id: {message_id}, alert_id: {alert.alert_id}, sources: {len(enrichment.get('enrichment_sources', []))})"
-            )
+                    # Publish enriched alert
+                    await publisher.publish("alert.enriched", enriched_message)
+
+                    logger.info(
+                        f"Alert enriched successfully (message_id: {message_id}, alert_id: {alert.alert_id}, sources: {len(enrichment.get('enrichment_sources', []))})"
+                    )
+
+                except Exception as e:
+                    logger.error(f"Failed to enrich alert {alert_data.get('alert_id', 'unknown')}: {e}", exc_info=True)
+                    # Continue with next alert in batch
+                    continue
 
         except Exception as e:
             logger.error(f"Context enrichment failed: {e}", exc_info=True)

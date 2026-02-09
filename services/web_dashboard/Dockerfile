@@ -76,5 +76,8 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
 
+# Set PYTHONPATH to include /app for shared module imports
+ENV PYTHONPATH=/app
+
 # Start FastAPI backend
-CMD ["python", "main.py"]
+CMD ["python", "services/web_dashboard/main.py"]

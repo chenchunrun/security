@@ -16,12 +16,15 @@ import {
   Menu,
   X,
   Shield,
+  Zap,
 } from 'lucide-react'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Alerts', href: '/alerts', icon: AlertTriangle },
   { name: 'Reports', href: '/reports', icon: FileText },
+  { name: 'Automation', href: '/automation', icon: Zap },
+  { name: 'Notifications', href: '/notifications', icon: Bell },
   { name: 'Settings', href: '/settings', icon: Settings },
 ]
 

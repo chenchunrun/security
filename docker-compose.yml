@@ -25,7 +25,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-triage_password_change_me}
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "5432:5432"
+      - "5434:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init.sql
@@ -45,7 +45,7 @@ services:
     container_name: security-triage-redis
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_password_change_me}
     ports:
-      - "6379:6379"
+      - "6381:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -66,8 +66,8 @@ services:
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-rabbitmq_password_change_me}
       RABBITMQ_DEFAULT_VHOST: /
     ports:
-      - "5672:5672"   # AMQP protocol
-      - "15672:15672" # Management UI
+      - "5673:5672"   # AMQP protocol
+      - "15673:15672" # Management UI
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
@@ -320,6 +320,9 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data:ro  # Mount data directory for JSON files
     networks:
       - security-triage-network
     restart: unless-stopped
@@ -652,6 +655,10 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@postgres:5432/security_triage}
       # Redis
       REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@redis:6379/0}
+      # RabbitMQ
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://admin:${RABBITMQ_PASSWORD:-rabbitmq_password_change_me}@rabbitmq:5672/}
+      # Security
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-this-to-a-random-secret-key-in-production}
       # Application
       HOST: 0.0.0.0
       PORT: 8000
@@ -685,6 +692,10 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@postgres:5432/security_triage}
       # Redis
       REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@redis:6379/0}
+      # RabbitMQ
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://admin:${RABBITMQ_PASSWORD:-rabbitmq_password_change_me}@rabbitmq:5672/}
+      # Security
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-this-to-a-random-secret-key-in-production}
       # Application
       HOST: 0.0.0.0
       PORT: 8000
@@ -720,6 +731,10 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@postgres:5432/security_triage}
       # Redis
       REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@redis:6379/0}
+      # RabbitMQ
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://admin:${RABBITMQ_PASSWORD:-rabbitmq_password_change_me}@rabbitmq:5672/}
+      # Security
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-this-to-a-random-secret-key-in-production}
       # Application
       HOST: 0.0.0.0
       PORT: 8000
@@ -788,6 +803,17 @@ services:
       dockerfile: services/web_dashboard/Dockerfile
     container_name: security-triage-web-dashboard
     environment:
+      # Database
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://triage_user:${DB_PASSWORD:-triage_password_change_me}@postgres:5432/security_triage}
+      # Redis
+      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-redis_password_change_me}@redis:6379/0}
+      # RabbitMQ
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://admin:${RABBITMQ_PASSWORD:-rabbitmq_password_change_me}@rabbitmq:5672/}
+      # Security
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-this-to-a-random-secret-key-in-production}
+      # AI Services - Zhipu AI (智谱AI)
+      ZHIPUAI_API_KEY: ${ZHIPUAI_API_KEY}
+      ZHIPUAI_BASE_URL: ${ZHIPUAI_BASE_URL:-https://open.bigmodel.cn/api/paas/v4/}
       # Backend Services
       API_BASE_URL: ${API_BASE_URL:-http://localhost:8001}
       ANALYTICS_SERVICE_URL: ${ANALYTICS_SERVICE_URL:-http://data-analytics:8000}
@@ -799,7 +825,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DEBUG: "false"
     ports:
-      - "9015:8000"    # Changed from 8015 to 9015 (9000+ range for direct access)
+      - "3000:8000"    # Web Dashboard frontend
     depends_on:
       data-analytics:
         condition: service_healthy
