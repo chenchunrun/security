@@ -76,7 +76,8 @@
       "Bash(echo:*)",
       "Bash(docker info:*)",
       "Bash(git rm:*)",
-      "Bash(docker ps:*)"
+      "Bash(docker ps:*)",
+      "Bash(GIT_TERMINAL_PROMPT=0 git push:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
