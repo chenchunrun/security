@@ -29,8 +29,9 @@ env/
 .env
 
 # Logs
-logs/*.log
+logs/
 *.log
+*.log.*
 
 # IDE
 .vscode/
