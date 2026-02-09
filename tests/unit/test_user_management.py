@@ -434,7 +434,7 @@ class TestPasswordManagement:
              patch('services.user_management.main.db_manager') as mock_db:
 
             mock_validate.return_value = {"user_id": "usr-001"}
-            mock_hash.return_value "new_hashed"
+            mock_hash.return_value = "new_hashed"
             mock_db.fetch_one.return_value = {"user_id": "usr-001"}
 
             result = await reset_password("valid_token", "NewSecurePass123!")
