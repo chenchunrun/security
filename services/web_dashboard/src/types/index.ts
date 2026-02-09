@@ -93,11 +93,32 @@ export interface RiskAssessment {
 
 export interface ThreatIntelligence {
   ioc: string;
-  sources: string[];
-  severity: AlertSeverity;
-  confidence: number;
-  description: string;
-  last_seen: string;
+  ioc_type: 'ip' | 'domain' | 'url' | 'hash' | 'email';
+  sources: ThreatIntelSource[];
+  aggregate_score: number; // 0-100
+  threat_level: RiskLevel;
+  confidence: number; // 0-1
+  detected_by_count: number;
+  total_sources: number;
+  tags?: string[];
+  last_seen?: string;
+  first_seen?: string;
+  queried_at?: string;
+}
+
+export interface ThreatIntelSource {
+  source: string; // 'virustotal', 'abuse_ch', 'otx', etc.
+  detected: boolean;
+  detection_rate?: number;
+  positives?: number;
+  total?: number;
+  threat_type?: string;
+  tags?: string[];
+  country?: string;
+  as_owner?: string;
+  scan_date?: string;
+  permalink?: string;
+  details?: Record<string, unknown>;
 }
 
 export interface RemediationAction {

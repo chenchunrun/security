@@ -16,6 +16,10 @@ import {
   XCircle,
   AlertCircle,
   Activity,
+  Shield,
+  ExternalLink,
+  AlertTriangle,
+  CheckCircle2,
 } from 'lucide-react'
 
 const severityColors = {
@@ -245,6 +249,48 @@ export const AlertDetail: React.FC = () => {
             </div>
           </div>
 
+          {/* Threat Intelligence */}
+          {(alert.source_ip || alert.destination_ip || alert.target_ip || alert.file_hash || alert.url) && (
+            <div className="card">
+              <div className="card-header">
+                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Shield className="w-5 h-5" />
+                  Threat Intelligence
+                </h2>
+              </div>
+              <div className="card-body space-y-4">
+                {alert.source_ip && (
+                  <ThreatIntelItem
+                    label="Source IP"
+                    value={alert.source_ip}
+                    type="ip"
+                  />
+                )}
+                {(alert.destination_ip || alert.target_ip) && (
+                  <ThreatIntelItem
+                    label="Target IP"
+                    value={alert.destination_ip || alert.target_ip!}
+                    type="ip"
+                  />
+                )}
+                {alert.file_hash && (
+                  <ThreatIntelItem
+                    label="File Hash"
+                    value={alert.file_hash}
+                    type="hash"
+                  />
+                )}
+                {alert.url && (
+                  <ThreatIntelItem
+                    label="URL"
+                    value={alert.url}
+                    type="url"
+                  />
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Timeline */}
           <div className="card">
             <div className="card-header">
@@ -348,6 +394,117 @@ export const AlertDetail: React.FC = () => {
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+// Threat Intelligence Item Component
+interface ThreatIntelItemProps {
+  label: string
+  value: string
+  type: 'ip' | 'hash' | 'url'
+}
+
+const ThreatIntelItem: React.FC<ThreatIntelItemProps> = ({ label, value, type }) => {
+  const { data: threatIntel, isLoading } = useQuery({
+    queryKey: ['threat-intel', type, value],
+    queryFn: () => api.threatIntel.query(value, type),
+    enabled: !!value,
+    staleTime: 24 * 60 * 60 * 1000, // 24 hours
+  })
+
+  const getThreatLevelColor = (level: string) => {
+    switch (level) {
+      case 'critical':
+      case 'high':
+        return 'text-danger-600 bg-danger-50 border-danger-200'
+      case 'medium':
+        return 'text-warning-600 bg-warning-50 border-warning-200'
+      case 'low':
+        return 'text-info-600 bg-info-50 border-info-200'
+      default:
+        return 'text-success-600 bg-success-50 border-success-200'
+    }
+  }
+
+  const getThreatLevelIcon = (level: string) => {
+    switch (level) {
+      case 'critical':
+      case 'high':
+        return <AlertTriangle className="w-4 h-4" />
+      case 'medium':
+        return <AlertCircle className="w-4 h-4" />
+      default:
+        return <CheckCircle2 className="w-4 h-4" />
+    }
+  }
+
+  return (
+    <div className="border border-gray-200 rounded-lg p-4">
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex-1">
+          <label className="text-sm font-medium text-gray-600">{label}</label>
+          <p className="text-gray-900 mt-1 font-mono text-sm break-all">{value}</p>
+        </div>
+        {isLoading ? (
+          <div className="spinner-sm"></div>
+        ) : threatIntel ? (
+          <div className={`flex items-center gap-1 px-3 py-1 rounded-full border ${getThreatLevelColor(threatIntel.threat_level)}`}>
+            {getThreatLevelIcon(threatIntel.threat_level)}
+            <span className="text-sm font-medium capitalize">
+              {threatIntel.threat_level}
+            </span>
+            <span className="text-xs">({threatIntel.aggregate_score}/100)</span>
+          </div>
+        ) : null}
+      </div>
+
+      {threatIntel && threatIntel.sources && threatIntel.sources.length > 0 && (
+        <div className="mt-3 space-y-2">
+          <p className="text-xs font-medium text-gray-600">Threat Sources:</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {threatIntel.sources.map((source, idx) => (
+              <div
+                key={idx}
+                className={`text-xs p-2 rounded border ${
+                  source.detected
+                    ? 'bg-danger-50 border-danger-200'
+                    : 'bg-success-50 border-success-200'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium capitalize">{source.source.replace('_', ' ')}</span>
+                  {source.detected ? (
+                    <AlertTriangle className="w-3 h-3 text-danger-600" />
+                  ) : (
+                    <CheckCircle2 className="w-3 h-3 text-success-600" />
+                  )}
+                </div>
+                {source.detected && (
+                  <div className="mt-1 text-gray-600">
+                    {source.detection_rate !== undefined && (
+                      <span>Detection: {Math.round(source.detection_rate * 100)}%</span>
+                    )}
+                    {source.positives !== undefined && source.total && (
+                      <span className="ml-2">({source.positives}/{source.total})</span>
+                    )}
+                  </div>
+                )}
+                {source.permalink && (
+                  <a
+                    href={source.permalink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-primary-600 hover:underline flex items-center gap-1 mt-1"
+                  >
+                    View Details <ExternalLink className="w-3 h-3" />
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

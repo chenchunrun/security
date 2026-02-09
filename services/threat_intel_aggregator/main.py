@@ -41,6 +41,7 @@ from shared.data_loader import get_data_loader
 from shared.messaging import MessageConsumer, MessagePublisher
 from shared.models import SecurityAlert
 from shared.utils import Config, get_logger
+from shared.utils.cache import CacheManager, CacheKeys
 
 # Initialize logger
 logger = get_logger(__name__)
@@ -52,10 +53,10 @@ config = Config()
 db_manager: DatabaseManager = None
 publisher: MessagePublisher = None
 consumer: MessageConsumer = None
+cache_manager: "CacheManager" = None
 
-# Cache for threat intel (in-memory, use Redis in production)
-threat_cache: Dict[str, tuple] = {}  # key: (data, expiry_time)
-CACHE_TTL_SECONDS = 86400  # 24 hours
+# Cache TTL configuration
+THREAT_INTEL_CACHE_TTL = 86400  # 24 hours for threat intel
 
 
 # =============================================================================
@@ -577,63 +578,62 @@ async def enrich_with_threat_intel(alert: SecurityAlert) -> Dict[str, Any]:
 
     # Query IPs
     if alert.source_ip:
-        cache_key = f"threat_ip:{alert.source_ip}"
-        cached = check_cache(cache_key)
+        cache_key = CacheKeys.build(CacheKeys.THREAT_INTEL, ioc_type="ip", ioc_value=alert.source_ip)
+        cached = await check_cache(cache_key)
         if cached:
             enrichment["threat_intel"]["source_ip"] = cached
         else:
             result = await query_threat_intel(ip=alert.source_ip)
-            set_cache(cache_key, result)
+            await set_cache(cache_key, result)
             enrichment["threat_intel"]["source_ip"] = result
 
     if alert.target_ip:
-        cache_key = f"threat_ip:{alert.target_ip}"
-        cached = check_cache(cache_key)
+        cache_key = CacheKeys.build(CacheKeys.THREAT_INTEL, ioc_type="ip", ioc_value=alert.target_ip)
+        cached = await check_cache(cache_key)
         if cached:
             enrichment["threat_intel"]["target_ip"] = cached
         else:
             result = await query_threat_intel(ip=alert.target_ip)
-            set_cache(cache_key, result)
+            await set_cache(cache_key, result)
             enrichment["threat_intel"]["target_ip"] = result
 
     # Query file hash
     if alert.file_hash:
-        cache_key = f"threat_hash:{alert.file_hash}"
-        cached = check_cache(cache_key)
+        cache_key = CacheKeys.build(CacheKeys.THREAT_INTEL, ioc_type="hash", ioc_value=alert.file_hash)
+        cached = await check_cache(cache_key)
         if cached:
             enrichment["threat_intel"]["file_hash"] = cached
         else:
             result = await query_threat_intel(file_hash=alert.file_hash)
-            set_cache(cache_key, result)
+            await set_cache(cache_key, result)
             enrichment["threat_intel"]["file_hash"] = result
 
     # Query URL
     if alert.url:
-        cache_key = f"threat_url:{hashlib.md5(alert.url.encode()).hexdigest()}"
-        cached = check_cache(cache_key)
+        url_hash = hashlib.md5(alert.url.encode()).hexdigest()
+        cache_key = CacheKeys.build(CacheKeys.THREAT_INTEL, ioc_type="url", ioc_value=url_hash)
+        cached = await check_cache(cache_key)
         if cached:
             enrichment["threat_intel"]["url"] = cached
         else:
             result = await query_threat_intel(url=alert.url)
-            set_cache(cache_key, result)
+            await set_cache(cache_key, result)
             enrichment["threat_intel"]["url"] = result
 
     return enrichment
 
 
-def check_cache(key: str) -> Optional[Dict[str, Any]]:
-    """Check if data exists in cache and is not expired."""
-    if key in threat_cache:
-        data, expiry = threat_cache[key]
-        if datetime.utcnow().timestamp() < expiry:
-            return data
+async def check_cache(key: str) -> Optional[Dict[str, Any]]:
+    """Check if data exists in Redis cache."""
+    if cache_manager:
+        return await cache_manager.get(key)
     return None
 
 
-def set_cache(key: str, data: Dict[str, Any]):
-    """Store data in cache with expiry."""
-    expiry_time = datetime.utcnow().timestamp() + CACHE_TTL_SECONDS
-    threat_cache[key] = (data, expiry_time)
+async def set_cache(key: str, data: Dict[str, Any], ttl: int = THREAT_INTEL_CACHE_TTL):
+    """Store data in Redis cache with TTL."""
+    if cache_manager:
+        await cache_manager.set(key, data, ttl)
 
 
 # =============================================================================
@@ -644,11 +644,17 @@ def set_cache(key: str, data: Dict[str, Any]):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
-    global db_manager, publisher, consumer
+    global db_manager, publisher, consumer, cache_manager
 
     logger.info("Starting Threat Intel Aggregator Service")
 
     try:
+        # Initialize Redis cache manager
+        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+        cache_manager = CacheManager(redis_url)
+        await cache_manager.connect()
+        logger.info("✓ Redis cache connected")
+
         # Initialize threat intel sources
         init_threat_sources()
 
@@ -694,6 +700,10 @@ async def lifespan(app: FastAPI):
         if publisher:
             await publisher.close()
             logger.info("✓ Message publisher closed")
+
+        if cache_manager:
+            await cache_manager.close()
+            logger.info("✓ Redis cache closed")
 
         # Close database using the close_database function
         await close_database()
@@ -914,6 +924,7 @@ async def health_check():
     """Health check endpoint."""
     try:
         enabled_sources = [s.name for s in threat_sources if s.enabled]
+        cache_healthy = cache_manager is not None
 
         return {
             "status": "healthy",
@@ -921,10 +932,10 @@ async def health_check():
             "timestamp": datetime.utcnow().isoformat(),
             "checks": {
                 "database": "connected" if db_manager else "disconnected",
+                "redis_cache": "connected" if cache_healthy else "disconnected",
                 "message_queue_consumer": "connected" if consumer else "disconnected",
                 "message_queue_publisher": "connected" if publisher else "disconnected",
                 "threat_intel_sources": enabled_sources,
-                "cache_size": len(threat_cache),
             },
         }
     except Exception as e:
@@ -940,8 +951,8 @@ async def health_check():
 async def get_metrics():
     """Get threat intel metrics."""
     return {
-        "cache_size": len(threat_cache),
-        "cache_ttl_seconds": CACHE_TTL_SECONDS,
+        "cache_type": "redis",
+        "cache_ttl_seconds": THREAT_INTEL_CACHE_TTL,
         "sources_enabled": len([s for s in threat_sources if s.enabled]),
         "service": "threat-intel-aggregator",
     }
